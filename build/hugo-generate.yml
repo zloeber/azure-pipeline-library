@@ -17,7 +17,7 @@ stages:
       vmImage: ubuntu-latest
     steps:
     - ${{ if eq(parameters.initialize, 'true') }}:
-      - template: jobs/install-hugo.yml
+      - template: ../jobs/install-hugo.yml
         parameters:
           version: ${{ parameters.version }}
           binpath: '${{ parameters.binpath }}'
@@ -58,13 +58,7 @@ stages:
       inputs:
         targetPath: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
         artifactName: ${{ parameters.artifact }}
-    
-    - ${{ if eq(parameters.testhtml, 'true') }}:
-      - template: jobs/install-hugo.yml
-        parameters:
-          version: ${{ parameters.version }}
-
-    - template: jobs/test-html.yml
+    - template: ../jobs/test-html.yml
       parameters:
         initialize: ${{ parameters.initialize }}
         binpath: '${{ parameters.binpath }}'
