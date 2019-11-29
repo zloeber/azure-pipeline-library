@@ -1,0 +1,18 @@
+# 1. Downloads specified version of Hugo executable
+parameters:
+  version: '0.59.1'
+  binpath: '~/.local/bin'
+
+steps:
+- bash: |
+    [ -n "/tmp" ] && [ -n "hugo" ] && rm -rf "/tmp/hugo"
+    mkdir -p /tmp/hugo
+    mkdir -p ${BINPATH}
+    curl --retry 3 --retry-delay 5 --fail -sSL -o - https://github.com/gohugoio/hugo/releases/download/v${VERSION}/hugo_{VERSION}_Linux-64bit.tar.gz | tar -zx -C '/tmp/hugo'
+    find /tmp/hugo -type f -name 'hugo*' | xargs -I {} cp -f {} ${BINPATH}/hugo
+    chmod +x ${BINPATH}/hugo
+    [ -n "/tmp" ] && [ -n "hugo" ] && rm -rf "/tmp/hugo"
+  displayName: 'Step: Download Hugo v${{ parameters.version }}'
+  env:
+    VERSION: '${{ parameters.version }}'
+    BINPATH: '${{ parameters.binpath }}'

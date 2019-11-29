@@ -1,0 +1,71 @@
+parameters:
+  initialize: true
+  version: '0.59.1'
+  binpath: '~/.local/bin'
+  site: ''
+  baseurl: ''
+  stage: 'dev'
+  testhtml: false
+  artifact: artifact
+
+stages:
+- stage: Build_${{ parameters.artifact }}
+  displayName: 'Build Artifact: ${{ parameters.artifact }}'
+  jobs:
+  - job: hugo_generate
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - ${{ if eq(parameters.initialize, 'true') }}:
+      - template: jobs/install-hugo.yml
+        parameters:
+          version: ${{ parameters.version }}
+          binpath: '${{ parameters.binpath }}'
+    - bash: |
+        mkdir -p ${PUBLISHDIR}
+        ${BINPATH}/hugo \
+          --baseUrl '${SITE}' \
+          --contentDir "${CONTENTDIR}" \
+          --configDir "./sites" \
+          --config config.toml \
+          --destination "${PUBLISHDIR}"
+      displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
+      env:
+        SITE: ${{ parameters.baseurl }}
+        CONTENTDIR: 'sites/${{ parameters.site }}'
+        PUBLISHDIR: 'public-${{ parameters.stage }}'
+        BINPATH: '${{ parameters.binpath }}'
+    - task: CopyFiles@2
+      displayName: 'Bundle Artifacts'
+      inputs:
+        Contents: |
+          config.yml
+          public-${{ parameters.stage }}/**
+          resources/**
+          static/**
+          themes/**
+        TargetFolder: ./deploy-${{ parameters.stage }}
+    - task: ArchiveFiles@2
+      displayName: 'Archive Artifacts'
+      inputs:
+        rootFolderOrFile: ./deploy-${{ parameters.stage }}
+        includeRootFolder: false
+        archiveType: tar
+        tarCompression: gz
+        archiveFile: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
+        replaceExistingArchive: true
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
+        artifactName: ${{ parameters.artifact }}
+    
+    - ${{ if eq(parameters.testhtml, 'true') }}:
+      - template: jobs/install-hugo.yml
+        parameters:
+          version: ${{ parameters.version }}
+
+    - template: jobs/test-html.yml
+      parameters:
+        initialize: ${{ parameters.initialize }}
+        binpath: '${{ parameters.binpath }}'
+        path: ./deploy-${{ parameters.stage }}
