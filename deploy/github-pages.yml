@@ -30,8 +30,8 @@ stages:
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               rm -rf _deploy
               echo "Git clone - ${REPO}"
-              git clone -c http.extraheader="${gitextraheader}" --depth 1 --branch ${BRANCH} _deploy
-              echo "Removing public folder contents and overwriting withour artifact contents"
+              git clone -c http.extraheader="${gitextraheader}" --depth 1 --branch ${BRANCH} ${REPO} _deploy
+              echo "Removing public folder contents and overwriting with artifact contents"
               rm -rf ./_deploy/docs/*
               mkdir -p ./_deploy/docs
               tar -xzvf ${ARTIFACTPATH}/hugo-${{ parameters.stage }}-artifact.tar.gz --directory ./_deploy/docs
