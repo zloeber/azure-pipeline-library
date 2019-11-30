@@ -74,8 +74,9 @@ stages:
       inputs:
         targetPath: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
         artifactName: ${{ parameters.artifact }}
-    - template: ../jobs/test-html.yml
-      parameters:
-        initialize: ${{ parameters.initialize }}
-        binpath: '${{ parameters.binpath }}'
-        path: ./deploy-${{ parameters.stage }}
+    - ${{ if eq(parameters.testhtml, 'true') }}:
+      - template: ../jobs/test-html.yml
+        parameters:
+          initialize: ${{ parameters.initialize }}
+          binpath: '${{ parameters.binpath }}'
+          path: ./deploy-${{ parameters.stage }}
