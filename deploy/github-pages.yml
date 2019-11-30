@@ -17,9 +17,6 @@ stages:
       runOnce:
         deploy:
           steps:
-          - checkout: self
-            clean: true
-            persistCredentials: true
           - task: DownloadPipelineArtifact@2
             inputs:
               artifact: '${{ parameters.artifact }}'
@@ -40,7 +37,7 @@ stages:
               git config user.name "cicd"
               git add --all .
               git commit --no-verify -m 'cicd: deploy to github pages'
-              git push origin ${BRANCH}
+              git -c http.extraheader="${gitextraheader}" push
             displayName: 'Github Pages Deployment'
             env:
               STAGE: ${{ parameters.stage }}
