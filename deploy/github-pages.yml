@@ -4,41 +4,44 @@ parameters:
   stage: ''
   artifact: ''
 
-jobs:
-- deployment: deploy_${{ parameters.stage }}
-  condition: succeeded()
-  pool:
-    vmImage: ubuntu-latest
-  environment: ${{ parameters.stage }}
-  strategy:
-    runOnce:
-      deploy:
-        steps:
-        - checkout: self
-          clean: true
-          persistCredentials: true
-        - task: DownloadPipelineArtifact@2
-          inputs:
-            artifact: '${{ parameters.artifact }}'
-            targetPath: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
-        - bash: |
-            echo "Pulling in deployment repo"
-            gitorigin=`git config remote.origin.url`
-            gitextraheader=`git config "http.${gitorigin}.extraheader"`
-            rm -rf _deploy
-            echo "Git clone - ${REPO}"
-            git clone -c http.extraheader="${gitextraheader}" --depth 1 --branch ${BRANCH} _deploy
-            echo "Removing public folder contents and overwriting withour artifact contents"
-            rm -rf ./_deploy/docs/*
-            mkdir -p ./_deploy/docs
-            tar -xzvf ${ARTIFACTPATH}/hugo-${{ parameters.stage }}-artifact.tar.gz --directory ./_deploy/docs
-            cd ./_deploy
-            git add --all .
-            git commit -m 'cicd: deploy to github pages'
-            git push -c http.extraheader="${gitextraheader}" origin ${BRANCH}
-          displayName: 'Github Pages Deployment'
-          env:
-            STAGE: ${{ parameters.stage }}
-            REPO: ${{ parameters.repo }}
-            BRANCH: ${{ parameters.branch }}
-            ARTIFACTPATH: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
+stages:
+- stage: Github_Pages_${{ parameters.stage }}
+  displayName: 'Deploy: ${{ parameters.artifact }}'
+  jobs:
+  - deployment: deploy_${{ parameters.stage }}
+    condition: succeeded()
+    pool:
+      vmImage: ubuntu-latest
+    environment: ${{ parameters.stage }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+            persistCredentials: true
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifact: '${{ parameters.artifact }}'
+              targetPath: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
+          - bash: |
+              echo "Pulling in deployment repo"
+              gitorigin=`git config remote.origin.url`
+              gitextraheader=`git config "http.${gitorigin}.extraheader"`
+              rm -rf _deploy
+              echo "Git clone - ${REPO}"
+              git clone -c http.extraheader="${gitextraheader}" --depth 1 --branch ${BRANCH} _deploy
+              echo "Removing public folder contents and overwriting withour artifact contents"
+              rm -rf ./_deploy/docs/*
+              mkdir -p ./_deploy/docs
+              tar -xzvf ${ARTIFACTPATH}/hugo-${{ parameters.stage }}-artifact.tar.gz --directory ./_deploy/docs
+              cd ./_deploy
+              git add --all .
+              git commit -m 'cicd: deploy to github pages'
+              git push -c http.extraheader="${gitextraheader}" origin ${BRANCH}
+            displayName: 'Github Pages Deployment'
+            env:
+              STAGE: ${{ parameters.stage }}
+              REPO: ${{ parameters.repo }}
+              BRANCH: ${{ parameters.branch }}
+              ARTIFACTPATH: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
