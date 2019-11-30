@@ -19,6 +19,8 @@ stages:
     pool:
       vmImage: ubuntu-latest
     steps:
+    - checkout: self
+      submodules: true
     - ${{ if eq(parameters.initialize, 'true') }}:
       - template: ../jobs/install-hugo.yml
         parameters:
