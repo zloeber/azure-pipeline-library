@@ -40,7 +40,7 @@ stages:
               git config user.name "cicd"
               git add --all .
               git commit --no-verify -m 'cicd: deploy to github pages'
-              git push -c http.extraheader="${gitextraheader}" origin ${BRANCH}
+              git push origin ${BRANCH}
             displayName: 'Github Pages Deployment'
             env:
               STAGE: ${{ parameters.stage }}
