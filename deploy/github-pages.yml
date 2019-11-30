@@ -17,6 +17,10 @@ stages:
       runOnce:
         deploy:
           steps:
+          - checkout: self
+            clean: true
+            submodules: true
+            persistCredentials: true
           - task: DownloadPipelineArtifact@2
             inputs:
               artifact: '${{ parameters.artifact }}'
