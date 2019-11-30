@@ -1,6 +1,9 @@
 parameters:
   initialize: true
   version: '0.59.1'
+  theme: ''
+  disqusshortname: ''
+  canonifyurls: true
   binpath: '~/.local/bin'
   site: ''
   baseurl: ''
@@ -24,7 +27,6 @@ stages:
     - bash: |
         mkdir -p ${PUBLISHDIR}
         ${BINPATH}/hugo \
-          --baseUrl '${SITE}' \
           --contentDir "${CONTENTDIR}" \
           --configDir "./sites" \
           --config config.toml \
@@ -35,6 +37,10 @@ stages:
         CONTENTDIR: 'sites/${{ parameters.site }}'
         PUBLISHDIR: 'public-${{ parameters.stage }}'
         BINPATH: '${{ parameters.binpath }}'
+        HUGO_THEME: '${{ parameters.theme }}'
+        HUGO_BASEURL: '${{ parameters.baseurl }}'
+        HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+        HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
     - task: CopyFiles@2
       displayName: 'Bundle Artifacts'
       inputs:

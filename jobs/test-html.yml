@@ -21,7 +21,7 @@ steps:
       VERSION: ${{ parameters.version }}
 - bash: |
     ${BINPATH}/htmltest ${TESTPATH}
-  displayName: 'Run htmltest for path - ${{ parameters.testpath }}'
+  displayName: 'Run htmltest for path - ${{ parameters.path }}'
   env:
     BINPATH: ${{ parameters.binpath }}
     TESTPATH: ${{ parameters.path }}
