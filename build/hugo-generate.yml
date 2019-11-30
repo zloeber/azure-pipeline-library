@@ -20,7 +20,9 @@ stages:
       vmImage: ubuntu-latest
     steps:
     - checkout: self
+      clean: true
       submodules: true
+      persistCredentials: true
     - ${{ if eq(parameters.initialize, 'true') }}:
       - template: ../jobs/install-hugo.yml
         parameters:
@@ -55,16 +57,12 @@ stages:
       displayName: 'Bundle Artifacts'
       inputs:
         Contents: |
-          config.yml
           public-${{ parameters.stage }}/**
-          resources/**
-          static/**
-          themes/**
         TargetFolder: ./deploy-${{ parameters.stage }}
     - task: ArchiveFiles@2
       displayName: 'Archive Artifacts'
       inputs:
-        rootFolderOrFile: ./deploy-${{ parameters.stage }}
+        rootFolderOrFile: ./deploy-${{ parameters.stage }}/public-${{ parameters.stage }}
         includeRootFolder: false
         archiveType: tar
         tarCompression: gz
