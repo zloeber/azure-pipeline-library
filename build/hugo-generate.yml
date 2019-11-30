@@ -27,24 +27,28 @@ stages:
     - bash: |
         mkdir -p ${PUBLISHDIR}
         ${BINPATH}/hugo \
-          --theme ${HUGO_THEME} \
+          --theme ${THEME} \
+          --themesDir themes \
+          --layoutDir ${LAYOUTDIR} \
           --configDir ./ \
           --gc \
-          -e ${HUGO_ENV} \
+          -e ${STAGE} \
           --contentDir "${CONTENTDIR}" \
           --config config.toml \
+          --baseURL ${BASEURL} \
           --destination "${PUBLISHDIR}"
       displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
       env:
         SITE: ${{ parameters.baseurl }}
-        HUGO_ENV: ${{ parameters.stage }}
+        STAGE: ${{ parameters.stage }}
         CONTENTDIR: 'sites/${{ parameters.site }}'
         PUBLISHDIR: 'public-${{ parameters.stage }}'
         BINPATH: '${{ parameters.binpath }}'
-        HUGO_THEME: '${{ parameters.theme }}'
-        HUGO_BASEURL: '${{ parameters.baseurl }}'
-        HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-        HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
+        THEME: '${{ parameters.theme }}'
+        BASEURL: '${{ parameters.baseurl }}'
+        LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
+        DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+        CANONIFYURLS: '${{ parameters.canonifyurls }}'
     - task: CopyFiles@2
       displayName: 'Bundle Artifacts'
       inputs:
