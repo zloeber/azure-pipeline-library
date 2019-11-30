@@ -36,8 +36,10 @@ stages:
               mkdir -p ./_deploy/docs
               tar -xzvf ${ARTIFACTPATH}/hugo-${{ parameters.stage }}-artifact.tar.gz --directory ./_deploy/docs
               cd ./_deploy
+              git config user.email "cicd@azurepipelines"
+              git config user.name "cicd"
               git add --all .
-              git commit -m 'cicd: deploy to github pages'
+              git commit --no-verify -m 'cicd: deploy to github pages'
               git push -c http.extraheader="${gitextraheader}" origin ${BRANCH}
             displayName: 'Github Pages Deployment'
             env:
