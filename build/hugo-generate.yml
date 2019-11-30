@@ -12,7 +12,7 @@ parameters:
   artifact: artifact
 
 stages:
-- stage: Build_${{ parameters.artifact }}
+- stage: Generate_Site_${{ parameters.stage }}
   displayName: 'Build Artifact: ${{ parameters.artifact }}'
   jobs:
   - job: hugo_generate
