@@ -27,13 +27,17 @@ stages:
     - bash: |
         mkdir -p ${PUBLISHDIR}
         ${BINPATH}/hugo \
+          --theme ${HUGO_THEME} \
+          --configDir ./ \
+          --gc \
+          -e ${HUGO_ENV} \
           --contentDir "${CONTENTDIR}" \
-          --configDir "./sites" \
           --config config.toml \
           --destination "${PUBLISHDIR}"
       displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
       env:
         SITE: ${{ parameters.baseurl }}
+        HUGO_ENV: ${{ parameters.stage }}
         CONTENTDIR: 'sites/${{ parameters.site }}'
         PUBLISHDIR: 'public-${{ parameters.stage }}'
         BINPATH: '${{ parameters.binpath }}'
