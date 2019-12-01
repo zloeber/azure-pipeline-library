@@ -9,11 +9,12 @@ parameters:
   baseurl: ''
   stage: 'dev'
   testhtml: false
-  artifact: artifact
+  artifact: 'artifact'
+  drafts: 'false'
 
 stages:
-- stage: Generate_Site_${{ parameters.stage }}
-  displayName: 'Build Artifact: ${{ parameters.artifact }}'
+- stage: Hugo_Site_${{ parameters.stage }}
+  displayName: 'Build Site: ${{ parameters.artifact }}'
   jobs:
   - job: hugo_generate
     pool:
@@ -28,31 +29,60 @@ stages:
         parameters:
           version: ${{ parameters.version }}
           binpath: '${{ parameters.binpath }}'
-    - bash: |
-        mkdir -p ${PUBLISHDIR}
-        ${BINPATH}/hugo \
-          --theme ${THEME} \
-          --themesDir themes \
-          --layoutDir ${LAYOUTDIR} \
-          --configDir ./ \
-          --gc \
-          -e ${STAGE} \
-          --contentDir "${CONTENTDIR}" \
-          --config config.toml \
-          --baseURL ${BASEURL} \
-          --destination "${PUBLISHDIR}"
-      displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
-      env:
-        SITE: ${{ parameters.baseurl }}
-        STAGE: ${{ parameters.stage }}
-        CONTENTDIR: 'sites/${{ parameters.site }}'
-        PUBLISHDIR: 'public-${{ parameters.stage }}'
-        BINPATH: '${{ parameters.binpath }}'
-        THEME: '${{ parameters.theme }}'
-        BASEURL: '${{ parameters.baseurl }}'
-        LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
-        DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-        CANONIFYURLS: '${{ parameters.canonifyurls }}'
+    - ${{ if eq(parameters.drafts, 'true') }}:
+      - bash: |
+          mkdir -p ${PUBLISHDIR}
+          ${BINPATH}/hugo \
+            --theme ${THEME} \
+            --themesDir themes \
+            --layoutDir ${LAYOUTDIR} \
+            --configDir ./ \
+            --gc \
+            -e ${STAGE} \
+            --contentDir "${CONTENTDIR}" \
+            --config config.toml \
+            --baseURL ${BASEURL} \
+            --destination "${PUBLISHDIR}" \
+            --buildDrafts
+        displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
+        env:
+          SITE: ${{ parameters.baseurl }}
+          STAGE: ${{ parameters.stage }}
+          CONTENTDIR: 'sites/${{ parameters.site }}'
+          PUBLISHDIR: 'public-${{ parameters.stage }}'
+          BINPATH: '${{ parameters.binpath }}'
+          THEME: '${{ parameters.theme }}'
+          BASEURL: '${{ parameters.baseurl }}'
+          LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
+          DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+          CANONIFYURLS: '${{ parameters.canonifyurls }}'
+    - ${{ if eq(parameters.drafts, 'false') }}:
+      - bash: |
+          mkdir -p ${PUBLISHDIR}
+          ${BINPATH}/hugo \
+            --theme ${THEME} \
+            --themesDir themes \
+            --layoutDir ${LAYOUTDIR} \
+            --configDir ./ \
+            --gc \
+            -e ${STAGE} \
+            --contentDir "${CONTENTDIR}" \
+            --config config.toml \
+            --baseURL ${BASEURL} \
+            --destination "${PUBLISHDIR}"
+        displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
+        env:
+          SITE: ${{ parameters.baseurl }}
+          STAGE: ${{ parameters.stage }}
+          CONTENTDIR: 'sites/${{ parameters.site }}'
+          PUBLISHDIR: 'public-${{ parameters.stage }}'
+          BINPATH: '${{ parameters.binpath }}'
+          THEME: '${{ parameters.theme }}'
+          BASEURL: '${{ parameters.baseurl }}'
+          LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
+          DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+          CANONIFYURLS: '${{ parameters.canonifyurls }}'
+
     - task: CopyFiles@2
       displayName: 'Bundle Artifacts'
       inputs:
