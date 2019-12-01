@@ -66,11 +66,11 @@ stages:
         includeRootFolder: false
         archiveType: tar
         tarCompression: gz
-        archiveFile: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
+        archiveFile: $(Pipeline.Workspace)/artifact.tar.gz
         replaceExistingArchive: true
     - task: PublishPipelineArtifact@1
       inputs:
-        targetPath: $(Pipeline.Workspace)/hugo-${{ parameters.stage }}-artifact.tar.gz
+        targetPath: $(Pipeline.Workspace)/artifact.tar.gz
         artifactName: ${{ parameters.artifact }}
     - ${{ if eq(parameters.testhtml, 'true') }}:
       - template: ../jobs/test-html.yml

@@ -1,11 +1,15 @@
+## Deploy an artifact bundle (tar.gz) from an azure pipeline to another git repo using inherited credentials.
+## Author: Zachary Loeber
 parameters:
   repo: ''
   branch: 'master'
+  path: 'docs'
   stage: ''
-  artifact: ''
+  pipelineartifact: 'artifact'
+  artifact: 'artifact.tar.gz'
 
 stages:
-- stage: Github_Pages_${{ parameters.stage }}
+- stage: Repo_Path_${{ parameters.stage }}
   displayName: 'Deploy: ${{ parameters.artifact }}'
   jobs:
   - deployment: deploy_${{ parameters.stage }}
@@ -23,19 +27,19 @@ stages:
             persistCredentials: true
           - task: DownloadPipelineArtifact@2
             inputs:
-              artifact: '${{ parameters.artifact }}'
-              targetPath: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
+              artifact: '${{ parameters.pipelineartifact }}'
+              targetPath: $(Pipeline.Workspace)/_artifact
           - bash: |
-              echo "Pulling in deployment repo"
+              echo "Pulling in repo"
               gitorigin=`git config remote.origin.url`
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               rm -rf _deploy
               echo "Git clone - ${REPO}"
               git clone -c http.extraheader="${gitextraheader}" --depth 1 --branch ${BRANCH} ${REPO} _deploy
               echo "Removing public folder contents and overwriting with artifact contents"
-              rm -rf ./_deploy/docs/*
-              mkdir -p ./_deploy/docs
-              tar -xzvf ${ARTIFACTPATH}/hugo-${{ parameters.stage }}-artifact.tar.gz --directory ./_deploy/docs
+              rm -rf ./_deploy/${REPOPATH}/*
+              mkdir -p ./_deploy/${REPOPATH}
+              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT} --directory ./_deploy/${REPOPATH}
               cd ./_deploy
               git config user.email "cicd@azurepipelines"
               git config user.name "cicd"
@@ -47,4 +51,6 @@ stages:
               STAGE: ${{ parameters.stage }}
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
-              ARTIFACTPATH: $(Pipeline.Workspace)/artifact/${{ parameters.stage }}
+              REPOPATH: ${{ parameters.path }}
+              ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
+              ARTIFACT: ${{ parameters.artifact }}
