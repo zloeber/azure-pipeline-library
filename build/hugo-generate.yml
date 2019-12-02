@@ -34,7 +34,7 @@ stages:
       - bash: |
           mkdir -p ${ARTIFACTDIR}
           mkdir -p static
-          echo '${SITE}' > ./static/CNAME
+          echo "${SITE}" | awk -F/ '{print $3}'  > ./static/CNAME
           ${BINPATH}/hugo \
             --theme ${THEME} \
             --themesDir themes \
@@ -63,7 +63,7 @@ stages:
       - bash: |
           mkdir -p ${ARTIFACTDIR}
           mkdir -p static
-          echo '${SITE}' > ./static/CNAME
+          echo "${SITE}" | awk -F/ '{print $3}'  > ./static/CNAME
           ${BINPATH}/hugo \
             --theme ${THEME} \
             --themesDir themes \
