@@ -41,7 +41,7 @@ stages:
             --layoutDir ${LAYOUTDIR} \
             --configDir ./ \
             --gc \
-            -e ${STAGE} \
+            -e production \
             --contentDir "${CONTENTDIR}" \
             --config config.toml \
             --baseURL ${BASEURL} \
@@ -70,7 +70,7 @@ stages:
             --layoutDir ${LAYOUTDIR} \
             --configDir ./ \
             --gc \
-            -e ${STAGE} \
+            -e production \
             --contentDir "${CONTENTDIR}" \
             --config config.toml \
             --baseURL ${BASEURL} \
