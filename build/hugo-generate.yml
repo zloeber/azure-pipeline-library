@@ -11,6 +11,7 @@ parameters:
   testhtml: false
   artifact: 'artifact'
   drafts: 'false'
+  publishdir: 'docs'
 
 stages:
 - stage: Hugo_Site_${{ parameters.stage }}
@@ -31,7 +32,7 @@ stages:
           binpath: '${{ parameters.binpath }}'
     - ${{ if eq(parameters.drafts, 'true') }}:
       - bash: |
-          mkdir -p ${PUBLISHDIR}
+          mkdir -p ${ARTIFACTDIR}
           ${BINPATH}/hugo \
             --theme ${THEME} \
             --themesDir themes \
@@ -42,23 +43,23 @@ stages:
             --contentDir "${CONTENTDIR}" \
             --config config.toml \
             --baseURL ${BASEURL} \
-            --destination "${PUBLISHDIR}" \
+            --destination "${ARTIFACTDIR}" \
             --buildDrafts
         displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
         env:
           SITE: ${{ parameters.baseurl }}
           STAGE: ${{ parameters.stage }}
           CONTENTDIR: 'sites/${{ parameters.site }}'
-          PUBLISHDIR: 'public-${{ parameters.stage }}'
           BINPATH: '${{ parameters.binpath }}'
           THEME: '${{ parameters.theme }}'
           BASEURL: '${{ parameters.baseurl }}'
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
           DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
           CANONIFYURLS: '${{ parameters.canonifyurls }}'
+          ARTIFACTDIR: '${{ parameters.artifact }}'
     - ${{ if eq(parameters.drafts, 'false') }}:
       - bash: |
-          mkdir -p ${PUBLISHDIR}
+          mkdir -p ${ARTIFACTDIR}
           ${BINPATH}/hugo \
             --theme ${THEME} \
             --themesDir themes \
@@ -69,19 +70,19 @@ stages:
             --contentDir "${CONTENTDIR}" \
             --config config.toml \
             --baseURL ${BASEURL} \
-            --destination "${PUBLISHDIR}"
+            --destination "${ARTIFACTDIR}"
         displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
         env:
           SITE: ${{ parameters.baseurl }}
           STAGE: ${{ parameters.stage }}
           CONTENTDIR: 'sites/${{ parameters.site }}'
-          PUBLISHDIR: 'public-${{ parameters.stage }}'
           BINPATH: '${{ parameters.binpath }}'
           THEME: '${{ parameters.theme }}'
           BASEURL: '${{ parameters.baseurl }}'
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
           DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
           CANONIFYURLS: '${{ parameters.canonifyurls }}'
+          ARTIFACTDIR: '${{ parameters.artifact }}'
 
     - task: CopyFiles@2
       displayName: 'Bundle Artifacts'
