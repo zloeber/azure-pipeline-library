@@ -88,24 +88,24 @@ stages:
           CANONIFYURLS: '${{ parameters.canonifyurls }}'
           ARTIFACTDIR: '${{ parameters.artifact }}'
 
-    - task: CopyFiles@2
-      displayName: 'Bundle Artifacts'
-      inputs:
-        Contents: |
-          public-${{ parameters.stage }}/**
-        TargetFolder: ./deploy-${{ parameters.stage }}
+    # - task: CopyFiles@2
+    #   displayName: 'Bundle Artifacts'
+    #   inputs:
+    #     Contents: |
+    #       ${{ parameters.artifact }}/**
+    #     TargetFolder: ./deploy-${{ parameters.stage }}
     - task: ArchiveFiles@2
       displayName: 'Archive Artifacts'
       inputs:
-        rootFolderOrFile: ./deploy-${{ parameters.stage }}/public-${{ parameters.stage }}
+        rootFolderOrFile: ./${{ parameters.artifact }}
         includeRootFolder: false
         archiveType: tar
         tarCompression: gz
-        archiveFile: $(Pipeline.Workspace)/artifact.tar.gz
+        archiveFile: $(Pipeline.Workspace)/${{ parameters.artifact }}.tar.gz
         replaceExistingArchive: true
     - task: PublishPipelineArtifact@1
       inputs:
-        targetPath: $(Pipeline.Workspace)/artifact.tar.gz
+        targetPath: $(Pipeline.Workspace)/${{ parameters.artifact }}.tar.gz
         artifactName: ${{ parameters.artifact }}
     - ${{ if eq(parameters.testhtml, 'true') }}:
       - template: ../jobs/test-html.yml
