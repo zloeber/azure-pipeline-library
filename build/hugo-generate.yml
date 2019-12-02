@@ -3,7 +3,7 @@ parameters:
   version: '0.59.1'
   theme: ''
   disqusshortname: ''
-  canonifyurls: true
+  canonifyurls: false
   binpath: '~/.local/bin'
   site: ''
   baseurl: ''
@@ -56,8 +56,8 @@ stages:
           THEME: '${{ parameters.theme }}'
           BASEURL: '${{ parameters.baseurl }}'
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
-          DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-          CANONIFYURLS: '${{ parameters.canonifyurls }}'
+          HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+          HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
           ARTIFACTDIR: '${{ parameters.artifact }}'
     - ${{ if eq(parameters.drafts, 'false') }}:
       - bash: |
@@ -84,8 +84,8 @@ stages:
           THEME: '${{ parameters.theme }}'
           BASEURL: '${{ parameters.baseurl }}'
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
-          DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-          CANONIFYURLS: '${{ parameters.canonifyurls }}'
+          HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+          HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
           ARTIFACTDIR: '${{ parameters.artifact }}'
 
     # - task: CopyFiles@2
