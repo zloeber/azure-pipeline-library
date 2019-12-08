@@ -34,8 +34,18 @@ stages:
         # This is required for publishing to github pages and custom domains
         echo $(basename ${BASEURL}) > ./${STATICPATH}/CNAME
         if [ $DRAFTS = 'true' ]; then
+          echo "Building Drafts"
           BUILDDRAFTS=--buildDrafts
+        else
+          BUILDDRAFTS=""
         fi
+        echo "BASEURL: ${BASEURL}"
+        echo "THEME: ${THEME}"
+        echo "LAYOUTDIR: ${LAYOUTDIR}"
+        echo "CONTENTPATH: ${CONTENTPATH}"
+        echo "STATICPATH: ${STATICPATH}"
+        echo "BUILDDRAFTS: ${BUILDDRAFTS}"
+
         ${BINPATH}/hugo \
           --theme ${THEME} \
           --themesDir themes \
