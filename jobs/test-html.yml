@@ -3,7 +3,7 @@ parameters:
   initialize: false
   version: '0.10.3'
   binpath: '~/.local/bin'
-  path: './'
+  path: './static'
 
 steps:
 - ${{ if eq(parameters.initialize, 'true') }}:

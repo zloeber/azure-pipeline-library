@@ -3,19 +3,19 @@ parameters:
   version: '0.59.1'
   theme: ''
   disqusshortname: ''
-  canonifyurls: false
-  binpath: '~/.local/bin'
-  site: ''
+  canonifyurls: 'false' ## (Default is usually ok)
+  binpath: '~/.local/bin' ## Binary path (default is usually ok)
+  staticpath: 'static'  ## Hugo static output path (default is usually ok)
+  contentpath: 'content' ## Site content path (default is usually ok)
   baseurl: ''
   stage: 'dev'
   testhtml: false
-  artifact: 'artifact'
-  drafts: 'false'
-  publishdir: 'docs'
+  artifact: 'artifact'  ## Artifact name (if you are generating multiple sites in one pipeline you may need to change this)
+  drafts: 'false' ## to publish drafts set to 'true'
 
 stages:
 - stage: Hugo_Site_${{ parameters.stage }}
-  displayName: 'Build Site: ${{ parameters.artifact }}'
+  displayName: 'Build Site: ${{ parameters.baseurl }}'
   jobs:
   - job: hugo_generate
     pool:
@@ -32,72 +32,42 @@ stages:
           binpath: '${{ parameters.binpath }}'
     - ${{ if eq(parameters.drafts, 'true') }}:
       - bash: |
-          mkdir -p ${ARTIFACTDIR}
-          mkdir -p static
-          echo "${SITE}" | awk -F/ '{print $3}'  > ./static/CNAME
+          mkdir -p ${ARTIFACTPATH}
+          mkdir -p ${STATICPATH}
+          # This is required for publishing to github pages and custom domains
+          echo $(basename ${BASEURL}) > ./${STATICPATH}/CNAME
+          if [ $DRAFTS = 'true' ]; then
+            BUILDDRAFTS=--buildDrafts
+          fi
           ${BINPATH}/hugo \
             --theme ${THEME} \
             --themesDir themes \
             --layoutDir ${LAYOUTDIR} \
             --configDir ./ \
-            --gc \
+            --gc ${BUILDDRAFTS} \
             -e production \
-            --contentDir "${CONTENTDIR}" \
+            --contentDir "${CONTENTPATH}" \
             --config config.toml \
             --baseURL ${BASEURL} \
-            --destination "${ARTIFACTDIR}" \
-            --buildDrafts
+            --destination "${STATICPATH}"
         displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
         env:
-          SITE: ${{ parameters.baseurl }}
+          STATICPATH: ${{ parameters.staticpath }}
           STAGE: ${{ parameters.stage }}
-          CONTENTDIR: 'sites/${{ parameters.site }}'
+          CONTENTPATH: '{{ parameters.contentpath }}'
           BINPATH: '${{ parameters.binpath }}'
           THEME: '${{ parameters.theme }}'
           BASEURL: '${{ parameters.baseurl }}'
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
           HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
           HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
-          ARTIFACTDIR: '${{ parameters.artifact }}'
-    - ${{ if eq(parameters.drafts, 'false') }}:
-      - bash: |
-          mkdir -p ${ARTIFACTDIR}
-          mkdir -p static
-          echo "${SITE}" | awk -F/ '{print $3}'  > ./static/CNAME
-          ${BINPATH}/hugo \
-            --theme ${THEME} \
-            --themesDir themes \
-            --layoutDir ${LAYOUTDIR} \
-            --configDir ./ \
-            --gc \
-            -e production \
-            --contentDir "${CONTENTDIR}" \
-            --config config.toml \
-            --baseURL ${BASEURL} \
-            --destination "${ARTIFACTDIR}"
-        displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
-        env:
-          SITE: ${{ parameters.baseurl }}
-          STAGE: ${{ parameters.stage }}
-          CONTENTDIR: 'sites/${{ parameters.site }}'
-          BINPATH: '${{ parameters.binpath }}'
-          THEME: '${{ parameters.theme }}'
-          BASEURL: '${{ parameters.baseurl }}'
-          LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
-          HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-          HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
-          ARTIFACTDIR: '${{ parameters.artifact }}'
+          STATICPATH: '${{ parameters.staticpath }}'
+          DRAFTS: ${{ parameters.drafts }}
 
-    # - task: CopyFiles@2
-    #   displayName: 'Bundle Artifacts'
-    #   inputs:
-    #     Contents: |
-    #       ${{ parameters.artifact }}/**
-    #     TargetFolder: ./deploy-${{ parameters.stage }}
     - task: ArchiveFiles@2
       displayName: 'Archive Artifacts'
       inputs:
-        rootFolderOrFile: ./${{ parameters.artifact }}
+        rootFolderOrFile: ./${{ parameters.staticpath }}
         includeRootFolder: false
         archiveType: tar
         tarCompression: gz
@@ -112,4 +82,4 @@ stages:
         parameters:
           initialize: ${{ parameters.initialize }}
           binpath: '${{ parameters.binpath }}'
-          path: ./deploy-${{ parameters.stage }}
+          path: ./${{ parameters.staticpath }}
