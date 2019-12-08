@@ -60,7 +60,7 @@ stages:
       displayName: 'Generate Site (${{ parameters.baseurl }})'
       env:
         STATICPATH: ${{ parameters.staticpath }}
-        CONTENTPATH: '{{ parameters.contentpath }}'
+        CONTENTPATH: '${{ parameters.contentpath }}'
         BINPATH: '${{ parameters.binpath }}'
         THEME: '${{ parameters.theme }}'
         BASEURL: '${{ parameters.baseurl }}'
