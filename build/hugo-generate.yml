@@ -29,37 +29,35 @@ stages:
         parameters:
           version: ${{ parameters.version }}
           binpath: '${{ parameters.binpath }}'
-    - ${{ if eq(parameters.drafts, 'true') }}:
-      - bash: |
-          mkdir -p ${ARTIFACTPATH}
-          mkdir -p ${STATICPATH}
-          # This is required for publishing to github pages and custom domains
-          echo $(basename ${BASEURL}) > ./${STATICPATH}/CNAME
-          if [ $DRAFTS = 'true' ]; then
-            BUILDDRAFTS=--buildDrafts
-          fi
-          ${BINPATH}/hugo \
-            --theme ${THEME} \
-            --themesDir themes \
-            --layoutDir ${LAYOUTDIR} \
-            --configDir ./ \
-            --gc ${BUILDDRAFTS} \
-            -e production \
-            --contentDir "${CONTENTPATH}" \
-            --config config.toml \
-            --baseURL ${BASEURL} \
-            --destination "${STATICPATH}"
-        displayName: 'Generate Site (${{ parameters.baseurl }})'
-        env:
-          STATICPATH: ${{ parameters.staticpath }}
-          CONTENTPATH: '{{ parameters.contentpath }}'
-          BINPATH: '${{ parameters.binpath }}'
-          THEME: '${{ parameters.theme }}'
-          BASEURL: '${{ parameters.baseurl }}'
-          LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
-          HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-          HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
-          DRAFTS: ${{ parameters.drafts }}
+    - bash: |
+        mkdir -p ${STATICPATH}
+        # This is required for publishing to github pages and custom domains
+        echo $(basename ${BASEURL}) > ./${STATICPATH}/CNAME
+        if [ $DRAFTS = 'true' ]; then
+          BUILDDRAFTS=--buildDrafts
+        fi
+        ${BINPATH}/hugo \
+          --theme ${THEME} \
+          --themesDir themes \
+          --layoutDir ${LAYOUTDIR} \
+          --configDir ./ \
+          --gc ${BUILDDRAFTS} \
+          -e production \
+          --contentDir "${CONTENTPATH}" \
+          --config config.toml \
+          --baseURL ${BASEURL} \
+          --destination "${STATICPATH}"
+      displayName: 'Generate Site (${{ parameters.baseurl }})'
+      env:
+        STATICPATH: ${{ parameters.staticpath }}
+        CONTENTPATH: '{{ parameters.contentpath }}'
+        BINPATH: '${{ parameters.binpath }}'
+        THEME: '${{ parameters.theme }}'
+        BASEURL: '${{ parameters.baseurl }}'
+        LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
+        HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
+        HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
+        DRAFTS: ${{ parameters.drafts }}
 
     - task: ArchiveFiles@2
       displayName: 'Archive Artifacts'
