@@ -51,12 +51,12 @@ stages:
           --themesDir themes \
           --layoutDir ${LAYOUTDIR} \
           --configDir ./ \
-          --gc ${BUILDDRAFTS} \
           -e production \
           --contentDir "${CONTENTPATH}" \
           --config config.toml \
           --baseURL ${BASEURL} \
-          --destination "${STATICPATH}"
+          --destination "${STATICPATH}" \
+          --gc ${BUILDDRAFTS}
       displayName: 'Generate Site (${{ parameters.baseurl }})'
       env:
         STATICPATH: ${{ parameters.staticpath }}
