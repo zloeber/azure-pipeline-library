@@ -22,6 +22,7 @@ steps:
 - bash: |
     ${BINPATH}/htmltest ${TESTPATH} -s
   displayName: 'Run htmltest for path - ${{ parameters.path }}'
+  continueOnError: true
   env:
     BINPATH: ${{ parameters.binpath }}
     TESTPATH: ${{ parameters.path }}
