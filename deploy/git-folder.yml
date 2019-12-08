@@ -46,7 +46,7 @@ stages:
               git add --all .
               git commit --no-verify -m 'cicd: Automated Deployment'
               git -c http.extraheader="${gitextraheader}" push
-            displayName: 'Github Pages Deployment'
+            displayName: 'Git Content Deployment'
             env:
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
