@@ -5,8 +5,8 @@ parameters:
   disqusshortname: ''
   canonifyurls: 'false' ## (Default is usually ok)
   binpath: '~/.local/bin' ## Binary path (default is usually ok)
-  staticpath: 'static'  ## Hugo static output path (default is usually ok)
-  contentpath: 'content' ## Site content path (default is usually ok)
+  staticpath: './static'  ## Hugo static output path (default is usually ok)
+  contentpath: './content' ## Site content path (default is usually ok)
   baseurl: ''
   testhtml: false
   artifact: 'artifact'  ## Artifact name (if you are generating multiple sites in one pipeline you may need to change this)
