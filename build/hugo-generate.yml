@@ -1,9 +1,7 @@
 parameters:
   initialize: true
   version: '0.59.1'
-  theme: ''
   disqusshortname: ''
-  canonifyurls: 'false' ## (Default is usually ok)
   binpath: '~/.local/bin' ## Binary path (default is usually ok)
   staticpath: './static'  ## Hugo static output path (default is usually ok)
   contentpath: './content' ## Site content path (default is usually ok)
@@ -40,14 +38,12 @@ stages:
           BUILDDRAFTS=""
         fi
         echo "BASEURL: ${BASEURL}"
-        echo "THEME: ${THEME}"
         echo "LAYOUTDIR: ${LAYOUTDIR}"
         echo "CONTENTPATH: ${CONTENTPATH}"
         echo "STATICPATH: ${STATICPATH}"
         echo "BUILDDRAFTS: ${BUILDDRAFTS}"
 
         ${BINPATH}/hugo \
-          --theme ${THEME} \
           --themesDir themes \
           --layoutDir ${LAYOUTDIR} \
           --configDir ./ \
@@ -62,11 +58,9 @@ stages:
         STATICPATH: ${{ parameters.staticpath }}
         CONTENTPATH: '${{ parameters.contentpath }}'
         BINPATH: '${{ parameters.binpath }}'
-        THEME: '${{ parameters.theme }}'
         BASEURL: '${{ parameters.baseurl }}'
         LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
         HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
-        HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
         DRAFTS: ${{ parameters.drafts }}
 
     - task: ArchiveFiles@2
