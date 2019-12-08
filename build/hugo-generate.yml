@@ -59,7 +59,6 @@ stages:
           LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
           HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
           HUGO_CANONIFYURLS: '${{ parameters.canonifyurls }}'
-          STATICPATH: '${{ parameters.staticpath }}'
           DRAFTS: ${{ parameters.drafts }}
 
     - task: ArchiveFiles@2
