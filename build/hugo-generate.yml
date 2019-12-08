@@ -87,4 +87,4 @@ stages:
         parameters:
           initialize: ${{ parameters.initialize }}
           binpath: '${{ parameters.binpath }}'
-          path: ./${{ parameters.staticpath }}
+          path: '${{ parameters.staticpath }}'
