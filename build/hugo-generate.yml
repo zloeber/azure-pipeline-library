@@ -8,13 +8,12 @@ parameters:
   staticpath: 'static'  ## Hugo static output path (default is usually ok)
   contentpath: 'content' ## Site content path (default is usually ok)
   baseurl: ''
-  stage: 'dev'
   testhtml: false
   artifact: 'artifact'  ## Artifact name (if you are generating multiple sites in one pipeline you may need to change this)
   drafts: 'false' ## to publish drafts set to 'true'
 
 stages:
-- stage: Hugo_Site_${{ parameters.stage }}
+- stage: Build_Hugo_Site
   displayName: 'Build Site: ${{ parameters.baseurl }}'
   jobs:
   - job: hugo_generate
@@ -50,10 +49,9 @@ stages:
             --config config.toml \
             --baseURL ${BASEURL} \
             --destination "${STATICPATH}"
-        displayName: 'Generate ${{ parameters.stage }} Site (${{ parameters.baseurl }})'
+        displayName: 'Generate Site (${{ parameters.baseurl }})'
         env:
           STATICPATH: ${{ parameters.staticpath }}
-          STAGE: ${{ parameters.stage }}
           CONTENTPATH: '{{ parameters.contentpath }}'
           BINPATH: '${{ parameters.binpath }}'
           THEME: '${{ parameters.theme }}'

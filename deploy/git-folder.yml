@@ -4,19 +4,19 @@ parameters:
   repo: ''
   branch: 'master'
   path: 'docs'
-  stage: ''
+  environment: ''
   pipelineartifact: 'artifact'
   artifact: 'artifact.tar.gz'
 
 stages:
-- stage: Repo_Path_${{ parameters.stage }}
+- stage: Deploy_To_Repo
   displayName: 'Deploy: ${{ parameters.artifact }}'
   jobs:
-  - deployment: deploy_${{ parameters.stage }}
+  - deployment: deploy_repo_content
     condition: succeeded()
     pool:
       vmImage: ubuntu-latest
-    environment: ${{ parameters.stage }}
+    environment: ${{ parameters.environment }}
     strategy:
       runOnce:
         deploy:
@@ -48,7 +48,6 @@ stages:
               git -c http.extraheader="${gitextraheader}" push
             displayName: 'Github Pages Deployment'
             env:
-              STAGE: ${{ parameters.stage }}
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
               REPOPATH: ${{ parameters.path }}
