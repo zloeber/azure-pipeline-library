@@ -1,13 +1,9 @@
-## Hugo pipeline example for both a dev and production 
-## pipeline based on branch. Assumes separate destination
-## repos and 'github_services' service connection endpoint.
 name: $(BuildDefinitionName).$(DayOfYear)$(Rev:.r)
 trigger:
   batch: true
   branches:
     include:
     - master
-    - develop
 
 # Don't trigger on PRs
 pr: none
@@ -20,51 +16,18 @@ resources:
     name: zloeber/azure-pipeline-library
 
 stages:
-## Build Hugo site
-- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/develop') }}:
-  - template: build/hugo-generate.yml@pipelines
-    parameters:
-      initialize: true
-      version: '0.59.1'
-      theme: 'bilberry-hugo-theme'
-      disqusshortname: 'zacharyloeber-com'
-      site: 'zacharyloeber.com'
-      baseurl: 'http://dev.zacharyloeber.com/'
-      testhtml: 'false'
-      stage: 'dev'
-      artifact: 'dev-blog'
-      drafts: 'true'
-
-## Deploy github pages to dev
-- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/develop') }}:
-  - template: deploy/git-folder.yml@pipelines
-    parameters:
-      repo: 'https://github.com/zloeber/dev.zacharyloeber.com-content.git'
-      branch: 'master'
-      path: 'docs'
-      stage: 'dev'
-      artifact: 'dev-blog'
-
-## Build Hugo site
-- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/master') }}:
-  - template: build/hugo-generate.yml@pipelines
-    parameters:
-      initialize: true
-      version: '0.59.1'
-      theme: 'bilberry-hugo-theme'
-      disqusshortname: 'zacharyloeber-com'
-      site: 'zacharyloeber.com'
-      baseurl: 'https://.zacharyloeber.com/'
-      testhtml: 'false'
-      stage: 'production'
-      artifact: 'prod-blog'
-
-## Deploy github pages to dev
-- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/master') }}:
-  - template: deploy/git-folder.yml@pipelines
-    parameters:
-      repo: 'https://github.com/zloeber/zacharyloeber.com-content.git'
-      branch: 'master'
-      path: 'docs'
-      stage: 'production'
-      pipelineartifact: 'prod-blog'
+## Build Hugo site (DEV)
+- template: build/hugo-generate.yml@pipelines
+  parameters:
+    initialize: true
+    baseurl: 'https://zacharyloeber-decks.onrender.com/'
+    testhtml: 'true'
+    outputpath: './testsite'
+    contentpath: './content'
+    drafts: 'true'
+- template: deploy/git-folder.yml@pipelines
+  parameters:
+    repo: 'https://github.com/zloeber/deck.loeber.live.git'
+    branch: 'master'
+    path: 'testsite'
+    environment: 'dev'
