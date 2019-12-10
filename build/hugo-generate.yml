@@ -3,7 +3,7 @@ parameters:
   version: '0.59.1'
   disqusshortname: ''
   binpath: '~/.local/bin' ## Binary path (default is usually ok)
-  staticpath: './static'  ## Hugo static output path (default is usually ok)
+  outputpath: './public'  ## Hugo static output path (default is usually ok)
   contentpath: './content' ## Site content path (default is usually ok)
   baseurl: ''
   testhtml: false
@@ -28,9 +28,9 @@ stages:
           version: ${{ parameters.version }}
           binpath: '${{ parameters.binpath }}'
     - bash: |
-        mkdir -p ${STATICPATH}
+        mkdir -p ${OUTPUTPATH}
         # This is required for publishing to github pages and custom domains
-        echo $(basename ${BASEURL}) > ./${STATICPATH}/CNAME
+        echo $(basename ${BASEURL}) > ./${OUTPUTPATH}/CNAME
         if [ $DRAFTS = 'true' ]; then
           echo "Building Drafts"
           BUILDDRAFTS=--buildDrafts
@@ -40,7 +40,7 @@ stages:
         echo "BASEURL: ${BASEURL}"
         echo "LAYOUTDIR: ${LAYOUTDIR}"
         echo "CONTENTPATH: ${CONTENTPATH}"
-        echo "STATICPATH: ${STATICPATH}"
+        echo "OUTPUTPATH: ${OUTPUTPATH}"
         echo "BUILDDRAFTS: ${BUILDDRAFTS}"
 
         ${BINPATH}/hugo \
@@ -51,11 +51,11 @@ stages:
           --contentDir "${CONTENTPATH}" \
           --config config.toml \
           --baseURL ${BASEURL} \
-          --destination "${STATICPATH}" \
+          --destination "${OUTPUTPATH}" \
           --gc ${BUILDDRAFTS}
       displayName: 'Generate Site (${{ parameters.baseurl }})'
       env:
-        STATICPATH: ${{ parameters.staticpath }}
+        OUTPUTPATH: ${{ parameters.outputpath }}
         CONTENTPATH: '${{ parameters.contentpath }}'
         BINPATH: '${{ parameters.binpath }}'
         BASEURL: '${{ parameters.baseurl }}'
@@ -66,7 +66,7 @@ stages:
     - task: ArchiveFiles@2
       displayName: 'Archive Artifacts'
       inputs:
-        rootFolderOrFile: ./${{ parameters.staticpath }}
+        rootFolderOrFile: ./${{ parameters.outputpath }}
         includeRootFolder: false
         archiveType: tar
         tarCompression: gz
@@ -81,4 +81,4 @@ stages:
         parameters:
           initialize: ${{ parameters.initialize }}
           binpath: '${{ parameters.binpath }}'
-          path: '${{ parameters.staticpath }}'
+          path: '${{ parameters.outputpath }}'
