@@ -9,9 +9,10 @@ parameters:
   testhtml: false
   artifact: 'artifact'  ## Artifact name (if you are generating multiple sites in one pipeline you may need to change this)
   drafts: 'false' ## to publish drafts set to 'true'
+  target: 'Site'
 
 stages:
-- stage: Build_Hugo_Site
+- stage: Build_${{ parameters.target }}
   displayName: 'Build Site: ${{ parameters.baseurl }}'
   jobs:
   - job: hugo_generate

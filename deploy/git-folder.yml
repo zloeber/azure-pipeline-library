@@ -7,9 +7,10 @@ parameters:
   environment: ''
   pipelineartifact: 'artifact'
   artifact: 'artifact.tar.gz'
+  target: "Repo"
 
 stages:
-- stage: Deploy_To_Repo
+- stage: Deploy_To_${{ parameters.target }}
   displayName: 'Deploy: ${{ parameters.artifact }}'
   jobs:
   - deployment: deploy_repo_content
