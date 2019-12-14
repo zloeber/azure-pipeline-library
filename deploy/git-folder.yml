@@ -47,6 +47,7 @@ stages:
               git commit --no-verify -m 'cicd: Automated Deployment'
               git -c http.extraheader="${gitextraheader}" push
             displayName: 'Git Content Deployment'
+            failOnStandardError: true
             env:
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
