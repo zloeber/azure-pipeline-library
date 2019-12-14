@@ -39,14 +39,12 @@ stages:
           BUILDDRAFTS=""
         fi
         echo "BASEURL: ${BASEURL}"
-        echo "LAYOUTDIR: ${LAYOUTDIR}"
         echo "CONTENTPATH: ${CONTENTPATH}"
         echo "OUTPUTPATH: ${OUTPUTPATH}"
         echo "BUILDDRAFTS: ${BUILDDRAFTS}"
 
         ${BINPATH}/hugo \
           --themesDir themes \
-          --layoutDir ${LAYOUTDIR} \
           --configDir ./ \
           -e production \
           --contentDir "${CONTENTPATH}" \
@@ -60,7 +58,6 @@ stages:
         CONTENTPATH: '${{ parameters.contentpath }}'
         BINPATH: '${{ parameters.binpath }}'
         BASEURL: '${{ parameters.baseurl }}'
-        LAYOUTDIR: 'themes/${{ parameters.theme }}/layouts'
         HUGO_DISQUSSHORTNAME: '${{ parameters.disqusshortname }}'
         DRAFTS: ${{ parameters.drafts }}
 
