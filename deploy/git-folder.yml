@@ -39,7 +39,7 @@ stages:
               echo "Removing ${REPOPATH} contents and overwriting with artifact contents"
               rm -rf ./_deploy/${REPOPATH}/*
               mkdir -p ./_deploy/${REPOPATH}
-              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH}
+              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH} --warning=none
               cd ./_deploy
               git config user.email "cicd@azurepipelines"
               git config user.name "cicd"
