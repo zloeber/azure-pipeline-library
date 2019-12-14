@@ -5,8 +5,7 @@ parameters:
   branch: 'master'
   path: 'docs'
   environment: ''
-  pipelineartifact: 'artifact'
-  artifact: 'artifact.tar.gz'
+  artifact: 'artifact'
   target: "Repo"
 
 stages:
@@ -28,7 +27,7 @@ stages:
             persistCredentials: true
           - task: DownloadPipelineArtifact@2
             inputs:
-              artifact: '${{ parameters.pipelineartifact }}'
+              artifact: '${{ parameters.artifact }}'
               targetPath: $(Pipeline.Workspace)/_artifact
           - bash: |
               echo "Pulling in repo"
@@ -40,7 +39,7 @@ stages:
               echo "Removing ${REPOPATH} contents and overwriting with artifact contents"
               rm -rf ./_deploy/${REPOPATH}/*
               mkdir -p ./_deploy/${REPOPATH}
-              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT} --directory ./_deploy/${REPOPATH}
+              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH}
               cd ./_deploy
               git config user.email "cicd@azurepipelines"
               git config user.name "cicd"
