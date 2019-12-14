@@ -48,6 +48,7 @@ stages:
           --configDir ./ \
           -e production \
           --contentDir "${CONTENTPATH}" \
+          --layoutDir layouts \
           --config config.toml \
           --baseURL ${BASEURL} \
           --destination "${OUTPUTPATH}" \
