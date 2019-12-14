@@ -40,17 +40,21 @@ stages:
               rm -rf ./_deploy/${REPOPATH}/*
               mkdir -p ./_deploy/${REPOPATH}
               tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH} --warning=none
-              cd ./_deploy
-              git config user.email "cicd@azurepipelines"
-              git config user.name "cicd"
-              git add --all .
-              git commit --no-verify -m 'cicd: Automated Deployment'
-              git -c http.extraheader="${gitextraheader}" push
-            displayName: 'Git Content Deployment'
-            failOnStderr: true
+            displayName: 'Content Deployment'
             env:
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
               REPOPATH: ${{ parameters.path }}
               ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
               ARTIFACT: ${{ parameters.artifact }}
+          - bash: |
+              echo "Commiting changes to repo"
+              gitorigin=`git config remote.origin.url`
+              gitextraheader=`git config "http.${gitorigin}.extraheader"`
+              cd ./_deploy
+              git config user.email "cicd@azurepipelines"
+              git config user.name "cicd"
+              git add --all .
+              git commit --no-verify -m 'cicd: Automated Deployment'
+              git -c http.extraheader="${gitextraheader}" push
+            displayName: 'Git Push Deployment'
