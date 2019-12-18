@@ -15,7 +15,7 @@ stages:
   - deployment: deploy_repo_content
     condition: succeeded()
     pool:
-      vmImage: ubuntu-latest
+      vmImage: ubuntu-18.04
     environment: ${{ parameters.environment }}
     strategy:
       runOnce:
@@ -28,7 +28,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             inputs:
               artifact: '${{ parameters.artifact }}'
-              targetPath: $(Pipeline.Workspace)/_artifact
+              targetPath: _artifact
           - bash: |
               echo "Pulling in repo"
               gitorigin=`git config remote.origin.url`
@@ -45,7 +45,7 @@ stages:
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
               REPOPATH: ${{ parameters.path }}
-              ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
+              ARTIFACTPATH: _artifact
               ARTIFACT: ${{ parameters.artifact }}
           - bash: |
               echo "Commiting changes to repo"
