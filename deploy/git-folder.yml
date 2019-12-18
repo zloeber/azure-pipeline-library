@@ -30,6 +30,7 @@ stages:
               artifact: '${{ parameters.artifact }}'
               targetPath: _artifact
           - bash: |
+              ls -al ${ARTIFACTPATH}
               echo "Pulling in repo"
               gitorigin=`git config remote.origin.url`
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
