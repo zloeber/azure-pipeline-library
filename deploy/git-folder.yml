@@ -16,8 +16,6 @@ stages:
     condition: succeeded()
     pool:
       vmImage: ubuntu-latest
-      demands:
-        - Agent.Version -equals v2.162.0
     environment: ${{ parameters.environment }}
     strategy:
       runOnce:
@@ -27,7 +25,7 @@ stages:
             clean: true
             submodules: true
             persistCredentials: true
-          - task: DownloadPipelineArtifact@2
+          - task: DownloadPipelineArtifact@1
             inputs:
               artifact: '${{ parameters.artifact }}'
               targetPath: _artifact
