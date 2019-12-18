@@ -15,7 +15,9 @@ stages:
   - deployment: deploy_repo_content
     condition: succeeded()
     pool:
-      vmImage: ubuntu-16.04
+      vmImage: ubuntu-latest
+      demands:
+        - Agent.Version -equals v2.162.0
     environment: ${{ parameters.environment }}
     strategy:
       runOnce:
