@@ -28,7 +28,7 @@ stages:
           - task: DownloadPipelineArtifact@1
             inputs:
               artifact: '${{ parameters.artifact }}'
-              targetPath: _artifact
+              targetPath: $(Pipeline.Workspace)/_artifact
           - bash: |
               ls -al ${ARTIFACTPATH}
               echo "Pulling in repo"
@@ -40,13 +40,13 @@ stages:
               echo "Removing ${REPOPATH} contents and overwriting with artifact contents"
               rm -rf ./_deploy/${REPOPATH}/*
               mkdir -p ./_deploy/${REPOPATH}
-              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT} --directory ./_deploy/${REPOPATH} --warning=none
+              tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH} --warning=none
             displayName: 'Content Deployment'
             env:
               REPO: ${{ parameters.repo }}
               BRANCH: ${{ parameters.branch }}
               REPOPATH: ${{ parameters.path }}
-              ARTIFACTPATH: _artifact
+              ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
               ARTIFACT: ${{ parameters.artifact }}
           - bash: |
               echo "Commiting changes to repo"
