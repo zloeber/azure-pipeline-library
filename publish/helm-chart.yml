@@ -3,11 +3,11 @@ parameters:
   stage: 'preprod'
   team: 'inv'
   chartPath: ''
-  tenantid: '585bda71-88ce-428b-9832-95eaa3dce989'
-  subscriptionid: '0df80659-2f31-4d47-82b4-b489a0509011'
-  repo: 'rtbsharedacr'
+  tenantid: ''
+  subscriptionid: ''
+  repo: ''
   name: 'chart'
-  helmversion: '2.16.1'
+  helmversion: '3.1.0'
   pipelinename: 'chart'
 
 stages:
