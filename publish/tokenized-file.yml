@@ -1,0 +1,52 @@
+## Publish a tokenized file based on stage and team name. These are used to source in the variable groups from ADO 
+parameters:
+  stage: ''
+  team: ''
+  source: ''
+  destination: ''
+  artifact: ''
+  version: ''
+  scalaproject: false
+
+stages:
+- stage: Publish_${{ parameters.artifact }}
+  displayName: 'Tokenize - ${{ parameters.artifact }}'
+  jobs:
+  - job: Publish_${{ parameters.artifact }}
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: global_parameters
+    - group: ${{ parameters.stage }}_parameters
+    - group: ${{ parameters.stage }}_${{ parameters.team }}_parameters
+    - group: ${{ parameters.stage }}_${{ parameters.team }}_secrets
+    steps:
+    - ${{ if eq(parameters.scalaproject, 'true') }}:
+      - checkout: self
+        clean: true
+      - bash: |
+          if [ -e "./sbt" ]; then
+            echo 'sbt already exists, skipping' >&2
+          else
+            curl -o ./sbt -Ls https://git.io/sbt
+          fi
+          chmod +x ./sbt
+
+          APP="$(sbt -no-colors name | tail -1)"
+          export APP="${APP#* }"
+          echo "APP: ${APP}"
+          echo "##vso[task.setvariable variable=APP]${APP}"
+          VERSION="$(sbt -no-colors version | tail -1)"
+          export VERSION="${VERSION#* }"
+          echo "VERSION: ${VERSION}"
+          echo "##vso[task.setvariable variable=VERSION]${VERSION}"
+        displayName: 'Tokenize: Initialize'
+    - template: ../jobs/install-gomplate.yml
+    - template: ../jobs/token-replace-file.yml
+      parameters:
+        source: ${{ parameters.source }}
+        destination: ${{ parameters.destination }}
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: ${{ parameters.destination }}
+        artifactName: ${{ parameters.artifact }}

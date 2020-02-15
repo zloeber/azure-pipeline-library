@@ -1,0 +1,35 @@
+parameters:
+  repository: '' ## Image Name
+  baseimage: 'ubuntu:bionic'
+  version: '0.1.0'
+
+stages:
+- stage: Build_Base_Image
+  displayName: 'Build Image'
+  jobs:
+  - job: build_image
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: Docker@2
+      displayName: 'Publish: Docker Login'
+      inputs:
+        containerRegistry: shared_registry
+        command: login
+    - task: Docker@2
+      displayName: 'Publish: Docker Build'
+      inputs:
+        containerRegistry: shared_registry
+        repository: ${{ parameters.repository }}
+        command: build
+        tags: |
+          ${{ parameters.version }}
+        arguments: --build-arg BASE_IMAGE="${{ parameters.baseimage }}"
+    - task: Docker@2
+      displayName: 'Publish: Docker Push'
+      inputs:
+        containerRegistry: shared_registry
+        repository: ${{ parameters.repository }}
+        command: push
+        tags: |
+          ${{ parameters.version }}

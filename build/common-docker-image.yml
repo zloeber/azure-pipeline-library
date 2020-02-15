@@ -1,0 +1,49 @@
+## Builds, tags, and pushes a dockerfile to registry/app:version
+parameters:
+  endpoint: 'shared_registry'
+  baseimage: 'ubuntu:bionic'
+  buildContext: '.'
+  dockerfile: 'Dockerfile'
+  app: ''
+  version: '0.0.1'
+
+jobs:
+- job: bake_image
+  pool:
+    vmImage: ubuntu-latest
+  steps:
+  - bash: |
+      if [ -z "$app" ]; then
+        echo "##vso[task.logissue type=error;]Missing template parameter \"app\""
+        echo "##vso[task.complete result=Failed;]"
+      fi
+    env:
+      baseimage: ${{ parameters.baseimage }}
+      app: ${{ parameters.app }}
+    displayName: 'Initialize - Validate Parameters'
+  - task: Docker@2
+    displayName: 'CI: Docker Login'
+    inputs:
+      containerRegistry: ${{ parameters.endpoint }}
+      command: login
+  - task: Docker@2
+    displayName: 'CI: Docker Build'
+    inputs:
+      containerRegistry: ${{ parameters.endpoint }}
+      buildContext: ${{ parameters.buildContext }}
+      Dockerfile: ${{ parameters.dockerfile }}
+      repository: ${{ parameters.app }}
+      command: build
+      tags: |
+        $(Build.BuildId)
+        ${{ parameters.version }}
+      arguments: '--build-arg BASE_IMAGE="${{ parameters.baseimage }}"'
+  - task: Docker@2
+    displayName: 'CI: Docker Push'
+    inputs:
+      containerRegistry: ${{ parameters.endpoint }}
+      repository: '${{ parameters.app }}'
+      command: push
+      tags: |
+        $(Build.BuildId)
+        ${{ parameters.version }}

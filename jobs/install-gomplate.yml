@@ -1,0 +1,15 @@
+# 1. Downloads specified version of Hugo executable
+parameters:
+  version: '3.6.0'
+  binpath: '~/.local/bin'
+
+steps:
+- bash: |
+    mkdir -p ${BINPATH}
+    echo "Download url: https://github.com/hairyhenderson/gomplate/releases/download/v${GOMPLATE_VERSION}/gomplate_linux-amd64-slim"
+    curl --retry 3 --retry-delay 5 --fail -sSL -o ${BINPATH}/gomplate https://github.com/hairyhenderson/gomplate/releases/download/v${GOMPLATE_VERSION}/gomplate_linux-amd64-slim
+    chmod +x ${BINPATH}/gomplate
+  displayName: 'Step: Download gomplate v${{ parameters.version }}'
+  env:
+    GOMPLATE_VERSION: ${{ parameters.version }}
+    BINPATH: ${{ parameters.binpath }}

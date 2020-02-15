@@ -1,0 +1,131 @@
+## Deploy a helm chart hosted publicly or in ACR via helm3
+## Charts are assumed to be tokenized already. The deployment is atomic and
+## will be rolled back if there is a failure to deploy. 
+## Helm test is performed at the end by default
+parameters:
+  repo: 'rtbsharedacr'
+  repoUrl: ''
+  tillerNamespace: 'platform'
+  stage: ''
+  team: ''
+  chart: ''
+  name: ''
+  namespace: ''
+  values: ''
+  helmVersion: '3.1.0'
+  public: 'false'
+  postDeployTesting: 'true'
+
+stages:
+- stage: Deploy_Manifest
+  displayName: 'Publish'
+  jobs:
+  - job: Publish_Manifest
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: PublishPipelineArtifact@1
+      displayName: 'Helm - Publish Deployment Artifact'
+      inputs:
+        targetPath: ${{ parameters.values }}
+        artifact: manifest
+- stage: Deploy_${{ parameters.stage }}
+  displayName: Deploy_${{ parameters.stage }}
+  jobs:
+  - deployment: Deploy_${{ parameters.stage }}
+    environment: ${{ parameters.team }}-${{ parameters.stage }}
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: cicd_secrets
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@1
+            inputs:
+              artifact: 'manifest'
+              targetPath: $(Pipeline.Workspace)/_artifact
+          
+          - task: HelmInstaller@1
+            displayName: 'Helm - Install (${{ parameters.helmVersion }})'
+            inputs:
+              helmVersionToInstall: "${{ parameters.helmVersion }}"
+          
+          - ${{ if eq(parameters.public, 'false') }}:
+            - bash: |
+                az login \
+                  --service-principal \
+                  --tenant "${TENANTID}" \
+                  --username "${SPNAPPID}" \
+                  --password "${SPNSECRET}"
+                az account set --subscription "${AZSUB}"
+                az configure --defaults acr=${REPO}
+                az acr helm repo add -n ${REPO}
+              displayName: "Helm - Add Repo (ACR Hosted)"
+              env:
+                TENANTID: "$(tenantid)"
+                AZSUB: "$(chart-repo-subscription)"
+                SPNAPPID: "$(clientid)"
+                REPO: "${{ parameters.repo }}"
+                SPNSECRET: "$(clientsecret)"
+          - ${{ if eq(parameters.public, 'true') }}:
+            - bash: |
+                helm repo add ${REPO} ${URL}
+              displayName: 'Helm - Add Repo (public)'
+              env:
+                REPO: "${{ parameters.repo }}"
+                URL: "${{ parameters.repoUrl }}"
+          
+          - bash: |
+              helm plugin install https://github.com/databus23/helm-diff --version master
+              helm plugin install https://github.com/futuresimple/helm-secrets
+              helm plugin install https://github.com/mumoshu/helm-x
+              helm plugin install https://github.com/aslafy-z/helm-git.git 
+              helm plugin install https://github.com/thomastaylor312/helm-namespace
+              helm repo update
+            displayName: 'Helm - Repo Update'
+
+          - task: Kubernetes@1
+            displayName: 'Helm - Kubernetes Login'
+            timeoutInMinutes: 2
+            inputs:
+              kubernetesServiceEndpoint: ${{ parameters.stage }}_${{ parameters.team }}_kubernetes
+              namespace: ${{ parameters.namespace }}
+              command: login
+
+          - bash: |
+                helm namespace template \
+                  ${NAME} ${REPO}/${CHART} \
+                  --namespace ${NAMESPACE} \
+                  -f ${VALUES} > ${MANIFEST}
+            displayName: 'Helm - Template Chart'
+            env:
+              REPO: "${{ parameters.repo }}"
+              CHART: "${{ parameters.chart }}"
+              NAME: "${{ parameters.name }}"
+              NAMESPACE: "${{ parameters.namespace }}"
+              VALUES: "$(Pipeline.Workspace)/_artifact/manifest/values.yaml"
+              MANIFEST: $(Pipeline.Workspace)/deployment.yaml
+          
+          - publish: $(Pipeline.Workspace)/deployment.yaml
+            artifact: deployment
+          
+          - bash: |
+              helm namespace upgrade --install ${NAME} ${REPO}/${CHART} --namespace ${NAMESPACE} -f ${VALUES} --atomic
+            displayName: 'Helm - Deploy Chart'
+            env:
+              REPO: "${{ parameters.repo }}"
+              CHART: "${{ parameters.chart }}"
+              NAME: "${{ parameters.name }}"
+              NAMESPACE: "${{ parameters.namespace }}"
+              VALUES: "$(Pipeline.Workspace)/_artifact/manifest/values.yaml"
+
+          - ${{ if eq(parameters.postDeployTesting, 'true') }}:
+            - bash: |
+                helm namespace -n ${NAMESPACE} test ${NAME}
+              displayName: 'Helm - Test Deployment'
+              env:
+                NAME: "${{ parameters.name }}"
+                NAMESPACE: "${{ parameters.namespace }}"
+

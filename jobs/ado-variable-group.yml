@@ -1,0 +1,108 @@
+# Use az cli to update or create an ADO variable group like a crazy person
+# sourceFile is a generic .env file with entries in VAR=VALUE format.
+
+parameters:
+  sourceFile: ''
+  groupName: ''
+  overwrite: 'true'
+  adoProject: ''
+  adoOrg: ''
+  adoUser: ''
+  adoPAT: ''
+
+steps:
+- bash: |
+    export ADO_USER=${ADOUSER}
+    export ADO_PAT=${ADOPAT}
+    export AZURE_DEVOPS_EXT_PAT=${ADOPAT}
+
+    if [ ! -e "$SOURCEFILE" ]; then
+        echo "Without the SOURCEFILE file we are at a loss what to do :("
+        exit 1
+    fi
+
+    AZSUB=$(az account show --output tsv --query id)
+    if [ -z "$AZSUB" ]; then
+      echo "Unable to determine current Azure subscription!"
+      exit 1
+    fi
+
+    echo "Sourcing variables: $SOURCEFILE"
+    myvalues=()
+    while IFS= read -r line; do
+        var=`echo $line | tr -d '"'`
+        myvalues+=("$var")
+    done < "${SOURCEFILE}"
+    set -a
+    . "${SOURCEFILE}"
+    set +a
+
+    echo "AZSUB: ${AZSUB}"
+    echo "ADO_USER: ${ADO_USER}"
+    echo "ADO_PAT: ${ADO_PAT}"
+    echo "ADO_ORG: ${ADO_ORG}"
+    echo "ADO_PROJECT: ${ADO_PROJECT}"
+
+    get_ado_vargroup () {
+      group=`az pipelines variable-group list \
+        --detect false \
+        --subscription "$AZSUB" \
+        --organization "$ADO_ORG" \
+        --project "$ADO_PROJECT" \
+        -o table | grep $1 | head -n1 | awk '{print $1;}'`
+      echo "$group"
+    }
+
+    remove_ado_vargroup () {
+      echo "Attempting to remove vargroup id $1"
+      if [ ! -z "$1" ]; then
+        az pipelines variable-group delete \
+          --group-id "$1" \
+          --detect false \
+          --subscription "$AZSUB" \
+          --organization "$ADO_ORG" \
+          --project "$ADO_PROJECT" \
+          -y 2> /dev/null
+      fi;
+    }
+
+    add_ado_vargroup () {
+      if [ ! -z "$1" ]; then
+        local name="$1"
+        shift
+        local arr=("$@")
+        echo "Attempting to add vargroup - $name"
+        echo "  Variables = $arr"
+        az pipelines variable-group create \
+          --name "$name" \
+          --authorize true \
+          --detect false \
+          --subscription "$AZSUB" \
+          --organization "$ADO_ORG" \
+          --project "$ADO_PROJECT" \
+          --variables "${arr[@]}"
+      fi;
+    }
+
+    vargroup=`get_ado_vargroup ${GROUPNAME}`
+    if [ ! -z "$vargroup" ]; then
+      if [ "$OVERWRITE" = true ]; then
+        echo "Removing ADO variable group ${GROUPNAME} ($vargroup)"
+        remove_ado_vargroup $vargroup
+      else
+        echo "Variable already exists and OVERWRITE = ${OVERWRITE}"
+        exit 1
+      fi
+    fi
+
+    add_ado_vargroup ${GROUPNAME} "${myvalues[@]}"
+    
+  displayName: 'ADO Var Group - ${{ parameters.groupName }}'
+  env:
+    SOURCEFILE: '${{ parameters.sourceFile }}'
+    GROUPNAME: '${{ parameters.groupName }}'
+    OVERWRITE: '${{ parameters.overwrite }}'
+    ADO_ORG: '${{ parameters.adoOrg }}'
+    ADO_PROJECT: '${{ parameters.adoProject }}'
+    ADOUSER: '${{ parameters.adoUser }}'
+    ADOPAT: '${{ parameters.adoPAT }}'

@@ -1,0 +1,130 @@
+## Build a scala project
+#  If using an artifactory user id/password it will need to be sourced in via env vars in your build.sbt file:
+#   ARTIFACTORY_USER_NAME
+#   ARTIFACTORY_USER_PASSWORD
+# These will be inserted via the 'artifactory' 
+parameters:
+  sonarqube: false
+  SonarProjectName: sonar_project_code
+  SonarProjectKey: sonar_project_key
+  artifactFeeds: ''
+  artifactoryCredentials: 'artifactory'
+
+stages:
+- stage: Build
+  displayName: 'Build Scala App via sbt'
+  jobs:
+  - job: build_scala_artifact
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: ${{ parameters.artifactoryCredentials }}
+    steps:
+    - ${{ if ne(parameters.artifactFeeds, '') }}:
+        - task: MavenAuthenticate@0
+          displayName: 'CI: Auth Artifact Feeds (nextgen-scala-libs)'
+          inputs:
+            artifactsFeeds: ${{ parameters.artifactFeeds }}
+
+    - script: |
+        if [ -e "./sbt" ]; then
+          echo 'sbt already exists, skipping' >&2
+        else
+          curl -o ./sbt -Ls https://git.io/sbt
+        fi
+        chmod +x ./sbt
+        mkdir -p ./deploy
+        rm -rf ./deploy/deploy_placeholder
+        touch ./deploy/deploy_placeholder
+
+        APP="$(./sbt -no-colors name | tail -1)"
+        APP="${APP#* }"
+        echo "APP: ${APP}"
+        echo "##vso[task.setvariable variable=APP]${APP}"
+        SCALA_VERSION="$(./sbt -no-colors scalaVersion | tail -1)"
+        SCALA_VERSION="${SCALA_VERSION#* }"
+        SCALA_VERSION=${SCALA_VERSION%.*}
+        echo "SCALA_VERSION: ${SCALA_VERSION}"
+        echo "##vso[task.setvariable variable=SCALA_VERSION]${SCALA_VERSION}"
+        VERSION="$(./sbt -no-colors version | tail -1)"
+        VERSION="${VERSION#* }"
+        echo "VERSION: ${VERSION}"
+        echo "##vso[task.setvariable variable=VERSION]${VERSION}"
+      displayName: 'Build: Initialize'
+      continueOnError: false
+
+    - script: |
+        ./sbt \
+          "set coverageEnabled := true" \
+           clean coverage test
+      displayName: 'Build: Unit Tests'
+      continueOnError: false
+      env:
+        ARTIFACTORY_USER_NAME: 'AzureDevOps'
+        ARTIFACTORY_USER_PASSWORD: $(artifactory-password)
+
+    - task: PublishTestResults@2
+      displayName: 'Build: Publish Test Results'
+      inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: 'target/test-reports/*.xml'
+      continueOnError: true
+      condition: succeededOrFailed()
+
+    - script: |
+        echo "Building VERSION: ${VERSION}"
+        ./sbt -no-colors \
+          "set test in assembly := {}" \
+          "set coverageEnabled := false" \
+          assembly
+      displayName: 'Build: Assembly'
+      env:
+        ARTIFACTORY_USER_NAME: AzureDevOps
+        ARTIFACTORY_USER_PASSWORD: $(artifactory-password)
+
+    - script: |
+        ./sbt coverageReport
+      displayName: 'Build: Coverage Report'
+      continueOnError: true
+      env:
+        ARTIFACTORY_USER_NAME: AzureDevOps
+        ARTIFACTORY_USER_PASSWORD: $(artifactory-password)
+
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Build: Publish Coverage Results'
+      inputs:
+        codeCoverageTool: cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/target/scala-$(SCALA_VERSION)/scoverage-report/scoverage.xml'
+        continueOnError: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Build: Publish Deployment Artifact'
+      inputs:
+        targetPath: deploy
+        artifact: package
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Build: Publish Jar Artifact'
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/target/scala-$(SCALA_VERSION)/$(APP)-assembly-$(VERSION).jar'
+        artifact: jar
+
+    - ${{ if eq(parameters.sonarqube, 'true') }}:
+      - task: SonarQubePrepare@4
+        inputs:
+          SonarQube: 'SonarQube'
+          scannerMode: 'CLI'
+          configMode: 'file'
+          configFile: 'sonar-project.properties'
+          extraProperties: |
+            sonar.projectBaseDir=$(Build.SourcesDirectory)
+            # sonar.branch.name=$(Build.SourceBranchName)
+            sonar.projectKey=${{ parameters.SonarProjectKey }}.$(APP):Scala
+            sonar.projectName=${{ parameters.SonarProjectName }}.$(APP):Scala
+            sonar.projectVersion=$(VERSION)
+        displayName: 'Prepare analysis on SonarQube'
+        continueOnError: true
+    - ${{ if eq(parameters.sonarqube, 'true') }}:
+      - task: SonarSource.sonarqube.6D01813A-9589-4B15-8491-8164AEB38055.SonarQubeAnalyze@4
+        displayName: 'SonarQube: Run Code Analysis'
+        continueOnError: true

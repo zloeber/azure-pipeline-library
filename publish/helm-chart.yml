@@ -1,0 +1,85 @@
+## Azure pipelines template to build and publish a helm chart to acr repo (preview)
+parameters:
+  stage: 'preprod'
+  team: 'inv'
+  chartPath: ''
+  tenantid: '585bda71-88ce-428b-9832-95eaa3dce989'
+  subscriptionid: '0df80659-2f31-4d47-82b4-b489a0509011'
+  repo: 'rtbsharedacr'
+  name: 'chart'
+  helmversion: '2.16.1'
+  pipelinename: 'chart'
+
+stages:
+- stage: publish_${{ parameters.pipelinename }}
+  displayName: 'Publish Helm Chart (${{ parameters.name }})'
+  jobs:
+  - deployment: publish_helm_${{ parameters.pipelinename }}
+    condition: succeeded()
+    environment: shared
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: cicd_secrets
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            clean: true
+
+          - task: HelmInstaller@1
+            displayName: 'Helm - Install'
+            inputs:
+              helmVersionToInstall: ${{ parameters.helmversion }}
+
+          - bash: |
+              helm lint ${CHARTPATH}
+            displayName: "Helm - Lint Chart"
+            env:
+              CHARTPATH: ${{ parameters.chartPath }}
+
+          - bash: |
+              az login --service-principal \
+                      --username "${SPNAPPID}" \
+                      --password "${SPNSECRET}" \
+                      --tenant "${TENANTID}"
+              az account set --subscription "${AZSUB}"
+              az configure --defaults acr=${REPO}
+              az acr helm repo add -n ${REPO}
+            displayName: "ACR - Initialize"
+            env:
+              TENANTID: "$(tenantid)"
+              AZSUB: "${{ parameters.subscriptionid }}"
+              SPNAPPID: "$(clientid)"
+              REPO: "${{ parameters.repo }}"
+              SPNSECRET: "$(clientsecret)"
+
+          - bash: |
+              rm -rf ${DESTINATIONPATH}/*
+              helm package --dependency-update --destination ${DESTINATIONPATH} ${CHARTPATH}
+            displayName: "Helm - Package Chart"
+            env:
+              DESTINATIONPATH: "$(Build.ArtifactStagingDirectory)"
+              CHARTPATH: ${{ parameters.chartPath }}
+
+          - publish: $(Build.ArtifactStagingDirectory)
+            artifact: build-artifact-${{ parameters.stage }}-${{ parameters.name }}
+
+          - bash: |
+              chartPackage=$(ls ${STAGEPATH}/${CHART}-*.tgz)
+              chartVersion=$(echo $(basename $chartPackage) | egrep -o '[0-9].*[0-9]')
+              chartVersionAlreadyExists=$(helm search ${REPO}/${CHART} -v ${chartVersion} -l | grep ${chartVersion} | cut -f2)
+              echo "chartVersion: ${chartVersion}"
+              echo "chartVersionAlreadyExists: ${chartVersionAlreadyExists}"
+              echo "chartPackage: ${chartPackage}"
+              if [ "$chartVersion" = "$chartVersionAlreadyExists" ]; then
+                echo "Pushing existing chart to repo and overwriting (${chartVersion})"
+              fi
+              az acr helm push -n "${REPO}" $chartPackage --force
+            displayName: 'Helm - Publish Chart'
+            env:
+              STAGEPATH: "$(Build.ArtifactStagingDirectory)"
+              REPO: "${{ parameters.repo }}"
+              CHART: "${{ parameters.name }}"
+              BUILDID: "$(Build.BuildId)"

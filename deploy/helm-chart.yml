@@ -1,0 +1,127 @@
+## Deploy a helm chart hosted in ACR via helm2 (tillerless) or helm3 (preferred)
+## Charts are assumed to be tokenized already. The helm3 deployment is atomic and
+## will be rolled back if there is a failure to deploy properly.
+parameters:
+  repo: 'rtbsharedacr'
+  repoUrl: ''
+  tillerNamespace: 'platform'
+  stage: ''
+  team: ''
+  chart: ''
+  name: ''
+  namespace: ''
+  values: ''
+  artifact: 'chartdeployment'
+  helmversion: '3'
+  public: 'false'
+
+stages:
+- stage: Deploy_${{ parameters.stage }}
+  displayName: Deploy_${{ parameters.stage }}
+  jobs:
+  - deployment: Deploy_${{ parameters.stage }}
+    condition: succeeded()
+    environment: ${{ parameters.team }}-${{ parameters.stage }}
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: cicd_secrets
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@1
+            inputs:
+              artifact: '${{ parameters.artifact }}'
+              targetPath: $(Pipeline.Workspace)/_artifact
+          - ${{ if eq(parameters.helmversion, '3') }}:
+            - task: HelmInstaller@1
+              displayName: 'Helm - Install (3.x)'
+              inputs:
+                helmVersionToInstall: 3.1.0
+          - ${{ if eq(parameters.helmversion, '2') }}:
+            - task: HelmInstaller@1
+              displayName: 'Helm - Install (2.x)'
+              inputs:
+                helmVersionToInstall: 2.16.1
+          - ${{ if eq(parameters.public, 'false') }}:
+            - bash: |
+                az login \
+                  --service-principal \
+                  --tenant "${TENANTID}" \
+                  --username "${SPNAPPID}" \
+                  --password "${SPNSECRET}"
+                az account set --subscription "${AZSUB}"
+                az configure --defaults acr=${REPO}
+                az acr helm repo add -n ${REPO}
+              displayName: "Helm - Add Repo"
+              env:
+                TENANTID: "$(tenantid)"
+                AZSUB: "$(chart-repo-subscription)"
+                SPNAPPID: "$(clientid)"
+                REPO: "${{ parameters.repo }}"
+                SPNSECRET: "$(clientsecret)"
+          - ${{ if eq(parameters.public, 'true') }}:
+            - bash: |
+                helm repo add ${REPO} ${URL}
+              displayName: 'Helm - Add Repo'
+              env:
+                REPO: "${{ parameters.repo }}"
+                URL: "${{ parameters.repoUrl }}"
+          - bash: |
+              helm plugin install https://github.com/databus23/helm-diff --version master
+              helm plugin install https://github.com/futuresimple/helm-secrets
+              helm plugin install https://github.com/mumoshu/helm-x
+              helm plugin install https://github.com/aslafy-z/helm-git.git 
+              helm repo update
+            displayName: 'Helm - Repo Update'
+
+          - task: Kubernetes@1
+            displayName: 'Helm - Kubernetes Login'
+            timeoutInMinutes: 2
+            inputs:
+              kubernetesServiceEndpoint: ${{ parameters.stage }}_${{ parameters.team }}_kubernetes
+              namespace: ${{ parameters.namespace }}
+              command: login
+
+          - ${{ if eq(parameters.helmversion, '3') }}:
+            - bash: |
+                helm plugin install https://github.com/thomastaylor312/helm-namespace
+                helm namespace upgrade --install ${NAME} ${REPO}/${CHART} --namespace ${NAMESPACE} -f ${VALUES} --atomic
+              displayName: 'Helm - Deploy Chart'
+              env:
+                REPO: "${{ parameters.repo }}"
+                CHART: "${{ parameters.chart }}"
+                NAME: "${{ parameters.name }}"
+                NAMESPACE: "${{ parameters.namespace }}"
+                VALUES: "$(Pipeline.Workspace)/_artifact/${{ parameters.artifact }}/${{ parameters.values }}"
+            - bash: |
+                helm namespace -n ${NAMESPACE} test ${NAME}
+              displayName: 'Helm - Test Chart'
+              env:
+                NAME: "${{ parameters.name }}"
+                NAMESPACE: "${{ parameters.namespace }}"
+
+          - ${{ if eq(parameters.helmversion, '2') }}:
+            - bash: |
+                helm plugin install https://github.com/rimusz/helm-tiller
+                helm tiller install ${TILLERNAMESPACE}
+                helm tiller start-ci ${TILLERNAMESPACE}
+                eval < $(helm tiller env ${TILLERNAMESPACE})
+              displayName: 'Helm - Tillerless'
+              env:
+                TILLERNAMESPACE: ${{ parameters.tillerNamespace }}
+            - bash: |
+                echo ${VALUES}
+                ls -al
+                helm upgrade \
+                  --install ${NAME} ${REPO}/${CHART} \
+                  --namespace ${NAMESPACE} \
+                  -f ${VALUES}
+              displayName: 'Helm2 - Deploy Chart'
+              env:
+                REPO: "${{ parameters.repo }}"
+                CHART: "${{ parameters.chart }}"
+                NAME: "${{ parameters.name }}"
+                NAMESPACE: "${{ parameters.namespace }}"
+                VALUES: "$(Pipeline.Workspace)/_artifact/${{ parameters.artifact }}/${{ parameters.values }}"

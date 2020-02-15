@@ -1,0 +1,17 @@
+# Use gomplate to perform token replacement
+parameters:
+  source: ''
+  destination: ''
+  binpath: '~/.local/bin'
+
+steps:
+- bash: |
+    ${BINPATH}/gomplate -f ${SOURCE} -o ${DEST}
+  displayName: 'Gomplete Token Replacement - ${{ parameters.source }}'
+  env:
+    SOURCE: '${{ parameters.source }}'
+    DEST: '${{ parameters.destination }}'
+    BINPATH: '${{ parameters.binpath }}'
+    BUILDID: '$(Build.BuildId)'
+    VERSION: '$(VERSION)'
+    APP: '$(APP)'
