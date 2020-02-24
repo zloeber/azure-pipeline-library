@@ -1,0 +1,176 @@
+## Deploys terraform manifests using local makefiles
+parameters:
+  target: ''
+  target_env: ''
+  azenv: ''
+  tenantid: ''
+  subscription: ''
+  branch: master
+  initScript: ''
+
+jobs:
+- job: Build
+  pool:
+    vmImage: ubuntu-latest
+  workspace:
+    clean: all
+  variables:
+  - group: ${{ parameters.azenv }}_secrets
+  steps:
+  - checkout: self
+    clean: true
+    persistCredentials: true
+  - task: UsePythonVersion@0
+    displayName: 'Python: 3.6.10'
+    inputs:
+      versionSpec: 3.6.10
+
+  - script: |
+      az login \
+        --service-principal \
+        --tenant "${TENANTID}" \
+        --username "${SPNAPPID}" \
+        --password "${SPNSECRET}"
+      az account set \
+        --subscription "${AZSUB}"
+    displayName: 'Azure: Login'
+    env:
+      TENANTID: ${{ parameters.tenantid }}
+      AZSUB: ${{ parameters.subscription }}
+      SPNAPPID: $(clientid)
+      SPNSECRET: $(clientsecret)
+
+  - script: |
+      chmod +x ${SCRIPT}
+      ${SCRIPT}
+    displayName: 'Environment: Initialize'
+    env:
+      SCRIPT: ${{ parameters.initScript }}
+
+  - script: |
+      make tf/deps
+      make show/secrets > secrets.env
+      make download/platform/cert
+      make download/cicd/cert
+      eval `ssh-agent -s`
+      make load/private/cert
+      make load/cicd/cert
+      mkdir -p ~/.ssh
+      touch ~/.ssh/config
+      make show/cicd/ssh/config >> ~/.ssh/config
+    workingDirectory: $(Build.SourcesDirectory)/${{ parameters.target }}
+    displayName: 'Terraform: Dependencies'
+
+  - script: |
+      make init
+    workingDirectory: $(Build.SourcesDirectory)/${{ parameters.target }}
+    displayName: 'Terraform: Initialize'
+
+  - script: |
+      make plan
+    displayName: 'Terraform: Plan'
+    workingDirectory: $(Build.SourcesDirectory)/${{ parameters.target }}
+
+  - script: |
+      echo "Compressing tfplan directory..."
+      tar -czf tfplan.tar.gz -C ./.terraform .
+    displayName: 'Artifact: Bundle Terraform Plan'
+    workingDirectory: $(Build.SourcesDirectory)/${{ parameters.target }}
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Artifact: Publish Plan'
+    inputs:
+      targetPath: $(Build.SourcesDirectory)/${{ parameters.target }}/tfplan.tar.gz
+      artifactName: plan
+
+- deployment: Deploy
+  condition: succeeded()
+  environment: ${{ parameters.target_env }}
+  dependsOn: Build
+  pool:
+    vmImage: ubuntu-latest
+  workspace:
+    clean: all
+  variables:
+  - group: ${{ parameters.azenv }}_secrets
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - checkout: self
+          clean: true
+          persistCredentials: true
+          path: manifest
+
+        - download: current
+          artifact: plan
+
+        - script: |
+            mkdir -p ${TFPATH}
+            tar -xzvf ${ARTIFACTPATH}/tfplan.tar.gz --directory ${TFPATH}
+          displayName: 'Artifact: Extract to tfplan'
+          workingDirectory: '$(Pipeline.Workspace)/manifest'
+          env:
+            TARGET: ${{ parameters.target }}
+            TFPATH: $(Pipeline.Workspace)/manifest/${{ parameters.target }}/.terraform
+            ARTIFACTPATH: $(Pipeline.Workspace)/plan
+
+        - script: |
+            if [[ ! -f ${TFPATH}/terraform.tfstate ]] ; then
+                echo "terraform.tfstate is not in ${TFPATH}, aborting. "
+                ls -al ${TFPATH}
+                exit 1
+            else
+              cat ${TFPATH}/terraform.tfstate
+            fi
+          displayName: 'Check: terraform.tfstate'
+          env:
+            TFPATH: $(Pipeline.Workspace)/manifest/${{ parameters.target }}/.terraform
+
+        - script: |
+            az login \
+              --service-principal \
+              --tenant "${TENANTID}" \
+              --username "${SPNAPPID}" \
+              --password "${SPNSECRET}"
+            az account set \
+              --subscription "${AZSUB}"
+          displayName: 'Azure: Login (CD)'
+          env:
+            TENANTID: ${{ parameters.tenantid }}
+            AZSUB: ${{ parameters.subscription }}
+            SPNAPPID: $(clientid)
+            SPNSECRET: $(clientsecret)
+
+        - script: |
+            make tf/deps
+            make show/secrets > secrets.env
+            make download/platform/cert
+            make download/cicd/cert
+            eval `ssh-agent -s`
+            make load/private/cert
+            make load/cicd/cert
+            mkdir -p ~/.ssh
+            touch ~/.ssh/config
+            make show/cicd/ssh/config >> ~/.ssh/config
+          workingDirectory: $(Pipeline.Workspace)/manifest/${{ parameters.target }}
+          displayName: 'Terraform: Dependencies'
+
+        - task: UsePythonVersion@0
+          displayName: 'Python: 3.6.10'
+          inputs:
+            versionSpec: 3.6.10
+
+        - script: |
+            chmod +x ${SCRIPT}
+            ${SCRIPT}
+          displayName: 'Environment: Initialize'
+          env:
+            SCRIPT: ${{ parameters.initScript }}
+
+        - script: |
+            make tf/apply/pipeline
+          displayName: 'Terraform: Apply'
+          workingDirectory: '$(Pipeline.Workspace)/manifest/${{ parameters.target }}'
+          env:
+            TF_IN_AUTOMATION: true

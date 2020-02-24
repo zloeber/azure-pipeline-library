@@ -1,0 +1,248 @@
+## Deploys a scala service to destination kubernetes cluster
+## Current deployment produces and applies straight kubernetes yaml
+## NOTE: Namespace = <TEAM>-<SERVICE>
+parameters:
+  target: ''
+  azenv: ''
+  tenantid: ''
+  subscription: ''
+  branch: master
+  terraformVersion: '0.11.14'
+  initScript: ''
+
+jobs:
+- job: Build
+  pool:
+    vmImage: ubuntu-latest
+  workspace:
+    clean: all
+  variables:
+  - group: ${{ parameters.target }}_secrets
+  - group: ${{ parameters.azenv }}_secrets
+  steps:
+  - checkout: self
+    clean: true
+    persistCredentials: true
+  - task: UsePythonVersion@0
+    displayName: 'Python: 3.6.9'
+    inputs:
+      versionSpec: 3.6.9
+  - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+    displayName: 'Terraform: Install'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - script: |
+      az login \
+        --service-principal \
+        --tenant "${TENANTID}" \
+        --username "${SPNAPPID}" \
+        --password "${SPNSECRET}"
+      az account set \
+        --subscription "${AZSUB}"
+    displayName: 'Azure: Login'
+    env:
+      TENANTID: ${{ parameters.tenantid }}
+      AZSUB: ${{ parameters.subscription }}
+      SPNAPPID: $(clientid)
+      SPNSECRET: $(clientsecret)
+
+  - script: |
+      chmod +x ${SCRIPT}
+      ${SCRIPT}
+    displayName: 'Environment: Initialize'
+    env:
+      SCRIPT: ${{ parameters.initScript }}
+
+  - script: 'terraform validate -check-variables=false'
+    workingDirectory: '${{ parameters.target }}'
+    displayName: 'Terraform: Validate'
+  
+  - script: |
+      export TF_VAR_tenant_id="${terraform_tenant_id}"
+      export TF_VAR_terraform_client_id="${terraform_client_id}"
+      export TF_VAR_terraform_client_secret="${terraform_client_secret}"
+      export TF_VAR_terraform_object_id="${terraform_object_id}"
+      export TF_VAR_linux_admin_password="${linux_admin_password}"
+      export TF_VAR_psql_admin_password="${psql_admin_password}"
+      export TF_VAR_airflow_fernet_key="${airflow_fernet_key}"
+      export TF_VAR_smtp_api_key="${smtp_api_key}"
+      export TF_VAR_artifactory_username="${artifactory_username}"
+      export TF_VAR_artifactory_password="${artifactory_password}"
+      export TF_VAR_azuredevops_pat=${azuredevops_pat}
+      export TF_VAR_cassandra_password=${cassandra_password}
+      export TF_VAR_neo4j_password=${neo4j_password}
+
+      export ARM_CLIENT_ID="${terraform_client_id}"
+      export ARM_CLIENT_SECRET="${terraform_client_secret}"
+      export ARM_SUBSCRIPTION_ID=$(az account show --query id | xargs)
+      export ARM_TENANT_ID=$(az account show --query tenantId | xargs)
+      
+      echo "Connecting to backend..."
+      terraform init \
+        -backend=true \
+        -backend-config=resource_group_name="${backend_tf_sa_rg}" \
+        -backend-config=storage_account_name="${backend_tf_sa_name}" \
+        -backend-config=container_name=${WORKSPACE} \
+        -backend-config=key="terraform.tfstate" \
+        -backend-config=access_key="${backend_tf_sa_key}" \
+        -no-color \
+        -get=true \
+        -get-plugins=true \
+        -force-copy \
+        -upgrade=false \
+        -input=false
+      
+      echo "Selecting workspace..."
+      terraform workspace select "${WORKSPACE}" || terraform workspace new "${WORKSPACE}"
+      
+      echo "Planning..."
+      mkdir -p ../output/${WORKSPACE}
+      touch ../output/${WORKSPACE}/plan.txt
+      terraform plan \
+        -out=./.terraform/tfplan \
+        -no-color \
+        --refresh=true \
+        -input=false 2>&1 | tee ../output/${WORKSPACE}/plan.txt
+
+    workingDirectory: '${{ parameters.target }}'
+    displayName: 'Terraform: Plan'
+    env:
+      WORKSPACE: ${{ parameters.target }}
+      TF_IN_AUTOMATION: true
+      terraform_tenant_id: ${{ parameters.tenantid }}
+      terraform_client_id: $(clientid)
+      terraform_client_secret: $(clientsecret)
+      terraform_object_id: $(objectid)
+      artifactory_username: $(artifactory-username)
+      artifactory_password: $(artifactory-password)
+      azuredevops_pat: $(ado-pat)
+      linux_admin_password: $(linuxadminpassword)
+      psql_admin_password: $(psqladminpassword)
+      airflow_fernet_key: $(airflowfernetkey)
+      cassandra_password: $(cassandrapassword)
+      neo4j_password: $(neo4jpassword)
+      smtp_api_key: $(smtpapikey)
+      backend_tf_sa_rg: $(tf-sa-rg)
+      backend_tf_sa_name: $(tf-sa-name)
+      backend_tf_sa_key: $(tf-sa-key)
+  
+  - script: |
+      mkdir -p ../output/${TARGET}/
+      terraform graph -draw-cycles -type=plan | \
+        dot -Tpng > ../output/${TARGET}/plan-diagram.png
+    displayName: 'Terraform: Graph Plan'
+    workingDirectory: $(Build.SourcesDirectory)/${{ parameters.target }}
+    env:
+      TARGET: ${{ parameters.target }}
+
+  - script: |
+      echo "Compressing tfplan directory..."
+      tar -czf tfplan.tar.gz -C ./.terraform .
+    displayName: 'Artifact: Bundle Terraform Plan'
+    workingDirectory: '${{ parameters.target }}'
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Artifact: Publish Plan'
+    inputs:
+      targetPath: ${{ parameters.target }}/tfplan.tar.gz
+      artifactName: plan
+  - task: PublishPipelineArtifact@1
+    displayName: 'Artifact: Plan Output'
+    inputs:
+      targetPath: output/${{ parameters.target }}/
+      artifactName: output
+
+- deployment: Deploy
+  condition: succeeded()
+  environment: ${{ parameters.target }}
+  dependsOn: Build
+  pool:
+    vmImage: ubuntu-latest
+  workspace:
+    clean: all
+  variables:
+  - group: ${{ parameters.target }}_secrets
+  - group: ${{ parameters.azenv }}_secrets
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - checkout: self
+          clean: true
+          persistCredentials: true
+          path: manifest
+        - download: current
+          artifact: plan
+        - task: DownloadPipelineArtifact@1
+          inputs:
+            artifact: 'output'
+            targetPath: $(Pipeline.Workspace)/manifest/${{ parameters.target }}/
+        - script: |
+            ls ../output/${TARGET}/
+            mkdir -p ${TFPATH}
+            tar -xzvf ${ARTIFACTPATH}/tfplan.tar.gz --directory ${TFPATH}
+          displayName: 'Artifact: Extract to tfplan'
+          workingDirectory: '$(Pipeline.Workspace)/manifest'
+          env:
+            TARGET: ${{ parameters.target }}
+            TFPATH: $(Pipeline.Workspace)/manifest/${{ parameters.target }}/.terraform
+            ARTIFACTPATH: $(Pipeline.Workspace)/plan
+        - script: |
+            if [[ ! -f ${TFPATH}/terraform.tfstate ]] ; then
+                echo 'terraform.tfstate is not there, aborting.'
+                exit 1
+            else
+              cat ${TFPATH}/terraform.tfstate
+            fi
+          displayName: 'Check: terraform.tfstate'
+          env:
+            TFPATH: $(Pipeline.Workspace)/manifest/${{ parameters.target }}/.terraform
+        - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+          displayName: 'Terraform: Install'
+          inputs:
+            terraformVersion: ${{ parameters.terraformVersion }}
+        - task: UsePythonVersion@0
+          displayName: 'Python: 3.6.9'
+          inputs:
+            versionSpec: 3.6.9
+        - script: |
+            az login \
+              --service-principal \
+              --tenant "${TENANTID}" \
+              --username "${SPNAPPID}" \
+              --password "${SPNSECRET}"
+            az account set \
+              --subscription "${AZSUB}"
+          displayName: 'Azure: Login (CD)'
+          env:
+            TENANTID: ${{ parameters.tenantid }}
+            AZSUB: ${{ parameters.subscription }}
+            SPNAPPID: $(clientid)
+            SPNSECRET: $(clientsecret)
+        - script: |
+            chmod +x ${SCRIPT}
+            ${SCRIPT}
+          displayName: 'Environment: Initialize (CD)'
+          env:
+            SCRIPT: ${{ parameters.initScript }}
+
+        - script: |
+            terraform apply \
+              -auto-approve \
+              -input=false \
+              .terraform/tfplan
+          displayName: 'Terraform: Apply'
+          workingDirectory: '$(Pipeline.Workspace)/manifest/${{ parameters.target }}'
+          env:
+            TF_IN_AUTOMATION: true
+        - script: |
+            terraform graph -draw-cycles -type=apply | \
+              dot -Tpng > ./output/apply-diagram.png
+          displayName: 'Terraform: Graph Applied Plan'
+          workingDirectory: '$(Pipeline.Workspace)/manifest/${{ parameters.target }}'
+        - task: PublishPipelineArtifact@1
+          displayName: 'Artifact: Plan Output'
+          inputs:
+            targetPath: '$(Pipeline.Workspace)/manifest/${{ parameters.target }}/output/'
+            artifactName: apply-output

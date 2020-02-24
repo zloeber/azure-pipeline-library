@@ -1,0 +1,54 @@
+# Deploys an azure python linux function app to an existing function app.
+# (note: does not update the app settings in any way, this can be done via the service app deployment in terraform)
+parameters:
+  stage: ''
+  appName: ''
+  serviceConnection: ''
+
+stages:
+- stage: Deploy_to_${{ parameters.stage }}
+  displayName: 'Deploy Artifacts'
+  jobs:
+  - deployment: Deploy_to_${{ parameters.stage }}
+    condition: succeeded()
+    environment: ${{ parameters.stage }}
+    pool:
+      vmImage: ubuntu-latest
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            displayName: "Setting python version to 3.7 as required by functions"
+            inputs:
+              versionSpec: '3.7'
+              architecture: 'x64'
+
+          - bash: |
+              if [ -f extensions.csproj ]
+              then
+                  dotnet build extensions.csproj --output ./bin
+              fi
+              pip install --target="./.python_packages/lib/site-packages" -r ./requirements.txt
+            displayName: "Package requirements"
+
+          - task: ArchiveFiles@2
+            displayName: "Archive files"
+            inputs:
+              rootFolderOrFile: "$(System.DefaultWorkingDirectory)"
+              includeRootFolder: false
+              archiveFile: "$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip"
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip'
+              artifactName: 'drop'
+
+          - task: AzureFunctionApp@1
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              appType: functionAppLinux
+              appName: ${{ parameters.appName }}
+              package: $(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip

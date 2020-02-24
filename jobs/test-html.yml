@@ -2,7 +2,7 @@
 parameters:
   initialize: false
   version: '0.10.3'
-  binpath: '~/.local/bin'
+  binpath: '.local/bin'
   path: './static'
 
 steps:
@@ -10,10 +10,10 @@ steps:
   - bash: |
       [ -n "/tmp" ] && [ -n "htmltest" ] && rm -rf "/tmp/htmltest"
       mkdir -p /tmp/htmltest
-      mkdir -p ${BINPATH}
+      mkdir -p ${HOME}/${BINPATH}
       curl --retry 3 --retry-delay 5 --fail -sSL -o - https://github.com/wjdp/htmltest/releases/download/v${VERSION}/htmltest_${VERSION}_linux_amd64.tar.gz | tar -zx -C '/tmp/htmltest'
-      find /tmp/htmltest -type f -name 'htmltest*' | xargs -I {} cp -f {} ${BINPATH}/htmltest
-      chmod +x ${BINPATH}/htmltest
+      find /tmp/htmltest -type f -name 'htmltest*' | xargs -I {} cp -f {} ${HOME}/${BINPATH}/htmltest
+      chmod +x ${HOME}/${BINPATH}/htmltest
       [ -n "/tmp" ] && [ -n "htmltest" ] && rm -rf "/tmp/htmltest"
     displayName: 'Download htmltest - ${{ parameters.version }}'
     env:

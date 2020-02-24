@@ -1,4 +1,5 @@
-## Publish a tokenized file based on stage and team name. These are used to source in the variable groups from ADO 
+## Publish a tokenized file based on stage and team name. 
+## These are used to source in the variable groups from ADO 
 parameters:
   stage: ''
   team: ''

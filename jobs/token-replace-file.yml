@@ -2,11 +2,11 @@
 parameters:
   source: ''
   destination: ''
-  binpath: '~/.local/bin'
+  binpath: '.local/bin'
 
 steps:
 - bash: |
-    ${BINPATH}/gomplate -f ${SOURCE} -o ${DEST}
+    ${HOME}/${BINPATH}/gomplate -f ${SOURCE} -o ${DEST}
   displayName: 'Gomplete Token Replacement - ${{ parameters.source }}'
   env:
     SOURCE: '${{ parameters.source }}'
