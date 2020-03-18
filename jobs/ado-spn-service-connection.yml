@@ -1,0 +1,118 @@
+# Use az cli to update or create an ADO service connection for an SPN
+# - Requires an env file containing; KEYVAULTNAME which the pipeline has access to for sourcing the spn secret key and 
+#   TEAM_SPN_ID which represents the SPN to create the service account for.
+# - Assumes that a prior job has already logged into and selected the subscription.
+parameters:
+  envFile: ''
+  connectionName: ''
+  overwrite: 'false'
+  adoProject: ''
+  adoOrg: ''
+  adoUser: ''
+  adoPAT: ''
+  spnSecretVaultKey: 'SPNSECRET'  ## The vault key which contains the SPN secret for the SPN id behind the service connection
+
+steps:
+- bash: |
+    set -a
+    . $ENVFILE
+    set +a
+
+    export ADO_USER=${ADOUSER}
+    export ADO_PAT=${ADOPAT}
+    export AZURE_DEVOPS_EXT_PAT=${ADOPAT}
+
+    AZTENANT=$(az account show --output tsv --query tenantId)
+    if [ -z "$AZTENANT" ]; then
+      echo "Unable to determine current Azure subscription!"
+      exit 1
+    fi
+    AZSUBID=$(az account show --output tsv --query id)
+    if [ -z "$AZSUBID" ]; then
+      echo "Unable to determine current Azure subscription!"
+      exit 1
+    fi
+    AZSUBNAME=$(az account show --output tsv --query name)
+    if [ -z "$AZSUBNAME" ]; then
+      echo "Unable to determine current Azure subscription name!"
+      exit 1
+    fi
+    echo "ENVFILE: ${ENVFILE}"
+    echo "AZTENANT: ${AZTENANT}"
+    echo "AZSUBNAME: ${AZSUBNAME}"
+    echo "AZSUBID: ${AZSUBID}"
+    echo "ADO_USER: ${ADO_USER}"
+    echo "ADO_PAT: ${ADO_PAT}"
+    echo "ADO_ORG: ${ADO_ORG}"
+    echo "ADO_PROJECT: ${ADO_PROJECT}"
+    echo "TEAM_SPN_ID: ${TEAM_SPN_ID}"
+    echo "KEYVAULTNAME: ${KEYVAULTNAME}"
+    echo "SPNSECRET_VAULT_KEY: ${SPNSECRET_VAULT_KEY}"
+    echo ""
+
+    export AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY="$(az keyvault secret show --name ${SPNSECRET_VAULT_KEY} --vault-name $KEYVAULTNAME --subscription "$AZSUBID" --query value -o tsv)"
+    if [ -z "$AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY" ]; then
+        echo "Without the AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY the az commands will not work"
+        exit 1
+    fi
+
+    get_ado_connection () {
+      thiscon=`az devops service-endpoint list \
+        --detect false \
+        --subscription "$AZSUBID" \
+        --organization "$ADO_ORG" \
+        --project "$ADO_PROJECT" \
+        -o table | grep $1 | head -n1 | awk '{print $1;}'`
+      echo "$thiscon"
+    }
+
+    remove_ado_connection () {
+      echo "Attempting to remove service connection id $1"
+      if [ ! -z "$1" ]; then
+        az devops service-endpoint delete \
+          --id "$1" \
+          --detect false \
+          --subscription "$AZSUBID" \
+          --org "$ADO_ORG" \
+          --project "$ADO_PROJECT" \
+          -y
+      fi;
+    }
+
+    add_ado_service_connection_spn () {
+      echo "Attempting to add service connection: $1"
+      az devops service-endpoint azurerm create \
+        --project "$ADO_PROJECT" \
+        --detect false \
+        --subscription "$AZSUBID" \
+        --name "$1" \
+        --org "$ADO_ORG" \
+        --azure-rm-service-principal-id "$TEAM_SPN_ID" \
+        --azure-rm-tenant-id "$AZTENANT" \
+        --azure-rm-subscription-id "$AZSUBID" \
+        --azure-rm-subscription-name "$AZSUBNAME"
+    }
+
+    connectionid=`get_ado_connection ${SCNAME}`
+    if [ ! -z "$connectionid" ]; then
+      if [ "$OVERWRITE" = true ]; then
+        echo "Removing ADO variable group ${SCNAME} ($connectionid)"
+        remove_ado_connection $connectionid
+      else
+        echo "Service connection already exists and OVERWRITE = ${OVERWRITE}"
+        exit 0
+      fi
+    fi
+
+    add_ado_service_connection_spn ${SCNAME}
+    
+  displayName: 'ADO SPN Service Connection - ${{ parameters.connectionName }}'
+  env:
+    ENVFILE: '${{ parameters.envFile }}'
+    SCNAME: '${{ parameters.connectionName }}'
+    OVERWRITE: '${{ parameters.overwrite }}'
+    ADO_ORG: '${{ parameters.adoOrg }}'
+    ADO_PROJECT: '${{ parameters.adoProject }}'
+    ADOUSER: '${{ parameters.adoUser }}'
+    ADOPAT: '${{ parameters.adoPAT }}'
+    SPNSECRET_VAULT_KEY: '${{ parameters.spnSecretVaultKey }}'
