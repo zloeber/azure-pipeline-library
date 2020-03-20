@@ -1,7 +1,13 @@
-# Use az cli to update or create an ADO service connection for an SPN
-# - Requires an env file containing; KEYVAULTNAME which the pipeline has access to for sourcing the spn secret key and 
-#   TEAM_SPN_ID which represents the SPN to create the service account for.
-# - Assumes that a prior job has already logged into and selected the subscription.
+# Use az cli to update or create an ADO service connection for an already created SPN. This requires that the SPN be generated
+# so that you have access to the password for the account (see scripts/bake-azure-spn.sh on how to do this)
+#
+# - Requires an env file containing; 
+#     KEYVAULTNAME - Vault the pipeline has access to for sourcing the spn secret referenced in the spnSecretVaultKey parameter
+#     AZURE_RM_TENANT_ID
+#     AZURE_RM_SUBSCRIPTION_ID
+#     AZURE_RM_SUBSCRIPTION_NAME
+#     AZURE_RM_SERVICE_PRINCIPAL_ID (SPN id of the service connection to create)
+
 parameters:
   envFile: ''
   connectionName: ''
@@ -10,7 +16,7 @@ parameters:
   adoOrg: ''
   adoUser: ''
   adoPAT: ''
-  spnSecretVaultKey: 'SPNSECRET'  ## The vault key which contains the SPN secret for the SPN id behind the service connection
+  spnSecretVaultKey: 'SPNSECRET'
 
 steps:
 - bash: |
@@ -21,36 +27,41 @@ steps:
     export ADO_USER=${ADOUSER}
     export ADO_PAT=${ADOPAT}
     export AZURE_DEVOPS_EXT_PAT=${ADOPAT}
+    export AZURE_RM_TENANT_ID=${AZURE_RM_TENANT_ID}
+    export AZURE_RM_SUBSCRIPTION_ID=${AZURE_RM_SUBSCRIPTION_ID}
+    export AZURE_RM_SUBSCRIPTION_NAME="${AZURE_RM_SUBSCRIPTION_NAME}"
+    export AZURE_RM_SERVICE_PRINCIPAL_ID=${AZURE_RM_SERVICE_PRINCIPAL_ID}
 
-    AZTENANT=$(az account show --output tsv --query tenantId)
-    if [ -z "$AZTENANT" ]; then
-      echo "Unable to determine current Azure subscription!"
+    if [ -z "$AZURE_RM_TENANT_ID" ]; then
+      echo "Unable to determine AZURE_RM_TENANT_ID!"
       exit 1
     fi
-    AZSUBID=$(az account show --output tsv --query id)
-    if [ -z "$AZSUBID" ]; then
-      echo "Unable to determine current Azure subscription!"
+    if [ -z "$AZURE_RM_SUBSCRIPTION_ID" ]; then
+      echo "Unable to determine AZURE_RM_SUBSCRIPTION_ID!"
       exit 1
     fi
-    AZSUBNAME=$(az account show --output tsv --query name)
-    if [ -z "$AZSUBNAME" ]; then
-      echo "Unable to determine current Azure subscription name!"
+    if [ -z "$AZURE_RM_SUBSCRIPTION_NAME" ]; then
+      echo "Unable to determine AZURE_RM_SUBSCRIPTION_NAME!"
+      exit 1
+    fi
+    if [ -z "$AZURE_RM_SERVICE_PRINCIPAL_ID" ]; then
+      echo "Unable to determine AZURE_RM_SERVICE_PRINCIPAL_ID!"
       exit 1
     fi
     echo "ENVFILE: ${ENVFILE}"
-    echo "AZTENANT: ${AZTENANT}"
-    echo "AZSUBNAME: ${AZSUBNAME}"
-    echo "AZSUBID: ${AZSUBID}"
+    echo "AZURE_RM_TENANT_ID: ${AZURE_RM_TENANT_ID}"
+    echo "AZURE_RM_SUBSCRIPTION_NAME: ${AZURE_RM_SUBSCRIPTION_NAME}"
+    echo "AZURE_RM_SUBSCRIPTION_ID: ${AZURE_RM_SUBSCRIPTION_ID}"
+    echo "AZURE_RM_SERVICE_PRINCIPAL_ID: ${AZURE_RM_SERVICE_PRINCIPAL_ID}"
     echo "ADO_USER: ${ADO_USER}"
     echo "ADO_PAT: ${ADO_PAT}"
     echo "ADO_ORG: ${ADO_ORG}"
     echo "ADO_PROJECT: ${ADO_PROJECT}"
-    echo "TEAM_SPN_ID: ${TEAM_SPN_ID}"
     echo "KEYVAULTNAME: ${KEYVAULTNAME}"
     echo "SPNSECRET_VAULT_KEY: ${SPNSECRET_VAULT_KEY}"
     echo ""
 
-    export AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY="$(az keyvault secret show --name ${SPNSECRET_VAULT_KEY} --vault-name $KEYVAULTNAME --subscription "$AZSUBID" --query value -o tsv)"
+    export AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY="$(az keyvault secret show --name ${SPNSECRET_VAULT_KEY} --vault-name $KEYVAULTNAME --subscription "$AZURE_RM_SUBSCRIPTION_ID" --query value -o tsv)"
     if [ -z "$AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY" ]; then
         echo "Without the AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY the az commands will not work"
         exit 1
@@ -59,7 +70,7 @@ steps:
     get_ado_connection () {
       thiscon=`az devops service-endpoint list \
         --detect false \
-        --subscription "$AZSUBID" \
+        --subscription "$AZURE_RM_SUBSCRIPTION_ID" \
         --organization "$ADO_ORG" \
         --project "$ADO_PROJECT" \
         -o table | grep $1 | head -n1 | awk '{print $1;}'`
@@ -72,7 +83,7 @@ steps:
         az devops service-endpoint delete \
           --id "$1" \
           --detect false \
-          --subscription "$AZSUBID" \
+          --subscription "$AZURE_RM_SUBSCRIPTION_ID" \
           --org "$ADO_ORG" \
           --project "$ADO_PROJECT" \
           -y
@@ -84,13 +95,13 @@ steps:
       az devops service-endpoint azurerm create \
         --project "$ADO_PROJECT" \
         --detect false \
-        --subscription "$AZSUBID" \
+        --subscription "$AZURE_RM_SUBSCRIPTION_ID" \
         --name "$1" \
         --org "$ADO_ORG" \
-        --azure-rm-service-principal-id "$TEAM_SPN_ID" \
-        --azure-rm-tenant-id "$AZTENANT" \
-        --azure-rm-subscription-id "$AZSUBID" \
-        --azure-rm-subscription-name "$AZSUBNAME"
+        --azure-rm-service-principal-id "$AZURE_RM_SERVICE_PRINCIPAL_ID" \
+        --azure-rm-tenant-id "$AZURE_RM_TENANT_ID" \
+        --azure-rm-subscription-id "$AZURE_RM_SUBSCRIPTION_ID" \
+        --azure-rm-subscription-name "$AZURE_RM_SUBSCRIPTION_NAME"
     }
 
     connectionid=`get_ado_connection ${SCNAME}`
