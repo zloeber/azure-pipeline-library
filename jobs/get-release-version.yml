@@ -1,0 +1,26 @@
+## Attempt to assign RELEASE_VERSION
+# Assigns variable in this order:
+# 1. source branch name (release/x.x.x-abc)
+# 2. sbt assigned version
+# 3. if fails then 0.0.1 is used
+
+parameters:
+  defaultVersion: '0.0.1'
+
+steps:
+- bash: |
+    echo "Branch Name: ${BRANCH}"
+    regex='(^[0-9]+.[0-9]+.[0-9]+)-?(.*)?$'
+    if [[ $BRANCH =~ $regex ]]; then
+      echo "$BRANCH matches semver!"
+      VERSION=$BRANCH
+    else
+      echo "Assigning a default version: $DEFAULTVERSION"
+      VERSION=$DEFAULTVERSION
+    fi
+    echo "RELEASE_VERSION: ${VERSION}"
+    echo "##vso[task.setvariable variable=RELEASE_VERSION]${VERSION}"
+  displayName: 'Get Build Version'
+  env:
+    BRANCH: $(Build.SourceBranchName)
+    DEFAULTVERSION: '${{ parameters.defaultVersion }}'

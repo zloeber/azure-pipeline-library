@@ -1,0 +1,15 @@
+# Downloads specified version of terraform-provider-helmfile
+parameters:
+  version: '0.1.0'
+  destpath: 'terraform.d'
+
+steps:
+- bash: |
+    mkdir -p ${DESTPATH}
+    curl --retry 3 --retry-delay 5 --fail -sSL \
+      -o ${DESTPATH}/terraform-provider-helmfile \
+      https://github.com/mumoshu/terraform-provider-helmfile/releases/download/v${VERSION}/terraform-provider-helmfile_linux_amd64
+  displayName: 'Step: Download terraform-provider-helmfile ${{ parameters.version }}'
+  env:
+    VERSION: '${{ parameters.version }}'
+    DESTPATH: '${{ parameters.destpath }}'

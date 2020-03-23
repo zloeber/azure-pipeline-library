@@ -1,0 +1,39 @@
+parameters:
+  stage: all
+  artifact: functions
+
+stages:
+- stage: Package_${{ parameters.stage }}
+  displayName: 'Package Functions'
+  jobs:
+  - job: package_functions
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+
+    - task: UsePythonVersion@0
+      displayName: "Setting python version to 3.7 as required by functions"
+      inputs:
+        versionSpec: '3.7'
+        architecture: 'x64'
+
+    - bash: |
+        if [ -f extensions.csproj ]
+        then
+            dotnet build extensions.csproj --output ./bin
+        fi
+        pip install --target="./.python_packages/lib/site-packages" -r ./requirements.txt
+      displayName: "Package requirements"
+
+    - task: ArchiveFiles@2
+      displayName: "Archive files"
+      inputs:
+        rootFolderOrFile: "$(System.DefaultWorkingDirectory)"
+        includeRootFolder: false
+        archiveFile: "$(System.DefaultWorkingDirectory)/functions.zip"
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/functions.zip'
+        artifactName: ${{ parameters.artifact }}

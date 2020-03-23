@@ -1,9 +1,8 @@
-# Deploys an azure python linux function app to an existing function app.
-# (note: does not update the app settings in any way, this can be done via the service app deployment in terraform)
 parameters:
+  team: ''
   stage: ''
+  artifact: ''
   appName: ''
-  serviceConnection: ''
 
 stages:
 - stage: Deploy_to_${{ parameters.stage }}
@@ -11,44 +10,20 @@ stages:
   jobs:
   - deployment: Deploy_to_${{ parameters.stage }}
     condition: succeeded()
-    environment: ${{ parameters.stage }}
+    environment: ${{ parameters.team }}-${{ parameters.stage }}
     pool:
       vmImage: ubuntu-latest
     strategy:
       runOnce:
         deploy:
           steps:
-          - checkout: self
-
-          - task: UsePythonVersion@0
-            displayName: "Setting python version to 3.7 as required by functions"
+          - task: DownloadPipelineArtifact@1
             inputs:
-              versionSpec: '3.7'
-              architecture: 'x64'
-
-          - bash: |
-              if [ -f extensions.csproj ]
-              then
-                  dotnet build extensions.csproj --output ./bin
-              fi
-              pip install --target="./.python_packages/lib/site-packages" -r ./requirements.txt
-            displayName: "Package requirements"
-
-          - task: ArchiveFiles@2
-            displayName: "Archive files"
-            inputs:
-              rootFolderOrFile: "$(System.DefaultWorkingDirectory)"
-              includeRootFolder: false
-              archiveFile: "$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip"
-
-          - task: PublishBuildArtifacts@1
-            inputs:
-              PathtoPublish: '$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip'
-              artifactName: 'drop'
-
+              artifact: ${{ parameters.artifact }}
+              targetPath: $(Pipeline.Workspace)
           - task: AzureFunctionApp@1
             inputs:
-              azureSubscription: ${{ parameters.serviceConnection }}
+              azureSubscription: ${{ parameters.stage }}_${{ parameters.team }}
               appType: functionAppLinux
               appName: ${{ parameters.appName }}
-              package: $(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip
+              package: "$(Pipeline.Workspace)/${{ parameters.artifact }}/functions.zip"
