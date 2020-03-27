@@ -1,0 +1,21 @@
+parameters:
+  package: ''
+  feed: ''
+  path: ''
+  versionOption: patch
+  version: '0.0.1'
+
+steps:
+- task: UniversalPackages@0
+  displayName: 'Publish Universal Package'
+  inputs:
+    command: publish
+    verbosity: Information
+    packagePublishDescription: '${{ parameters.package }} Universal Package'
+    publishedPackageVar: PackageName
+    vstsFeedPublish: '${{ parameters.feed }}'
+    publishDirectory: '${{ parameters.path }}'
+    vstsFeedPackagePublish: '${{ parameters.package }}'
+    versionOption: ${{ parameters.versionOption }}
+    ${{ if eq(parameters.versionOption, 'custom') }}:
+      versionPublish: ${{ parameters.version }}

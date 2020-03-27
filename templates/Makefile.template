@@ -1,0 +1,98 @@
+## A template makefile for an Azure Devops driven project
+
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+
+ORG := myOrg
+ADOPROJECT := myProject
+APP := this-app
+BRANCH := master
+REPO ?= ssh://git@ssh.dev.azure.com/v3/${ORG}/${ADOPROJECT}/${APP}
+PIPELINE ?= $(APP) Pipeline
+
+# Output related vars
+BOLD=$(shell tput bold)
+RED=$(shell tput setaf 1)
+GREEN=$(shell tput setaf 2)
+YELLOW=$(shell tput setaf 3)
+RESET=$(shell tput sgr0)
+
+##################
+.PHONY: help
+help: ## Help
+	@echo 'Commands:'
+	@grep -E '^[a-zA-Z_%/-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: repo/create
+repo/create: ## Create devops repo for this project
+	@az repos create --name "${APP}" --project "${ADOPROJECT}" --organization "https://dev.azure.com/${ORG}/" && \
+		git init && \
+		git remote add origin "${REPO}" && \
+		git add --all . && \
+		git commit -m "Feat: Initial Commit" && \
+		git push -u origin --all
+
+.PHONY: repo/update
+repo/update: ## Updates repo for this project
+	git add --all . && \
+	git commit -m "Update: General updates" && \
+	git push -u origin --all
+
+.PHONY: show/env
+show/env: ## Show env vars
+	@echo "ORG=${ORG}"
+	@echo "ADOPROJECT=${ADOPROJECT}"
+	@echo "APP=${APP}"
+	@echo "REPO=${REPO}"
+	@echo "PIPELINE=$(PIPELINE)"
+
+.PHONY: az/login
+az/login: ## Login to Azure
+	@echo "$(BOLD)Azure: Login$(RESET)"
+	@az login
+
+.PHONY: az
+az: ## install az cli
+	$(shell curl -L https://aka.ms/InstallAzureCli | bash) || true
+
+.PHONY: az/set/sub
+az/set/sub: ## Set Azure subscription
+	@OLD_IFS=$${IFS}; IFS=$$'\n';select subscription in $$(az account list --query "[].name" -o tsv) cancel; do if [ "$${subscription}" != "cancel" ]; then echo "Setting Subscription: $${subscription}"; az account set --subscription "$${subscription}"; fi; break; done; IFS=$${OLD_IFS}
+
+.PHONY: az/ext/install
+az/ext/install: ## Install az extensions
+	@az extension add --name azure-devops || true
+
+.PHONY: az/ext/update
+az/ext/update: ## Update az extensions
+	@az extension update --name azure-devops || true
+
+.PHONY: az/ext/init
+az/ext/init: ## Points to correct remote org for az cli operations
+	az devops configure --defaults \
+		organization=${ORG} \
+		project=${DEVOPS_APP} \
+		detect=false
+
+.PHONY: pipeline/add
+pipeline/add: ## Add azure pipeline for this project
+	az pipelines create \
+		--name '$(PIPELINE)' \
+		--skip-run --detect false \
+		--branch $(BRANCH) \
+		--yaml-path azure-pipeline.yml \
+		--repository $(REPO) \
+		--repository-type tfsgit || true
+
+.PHONY: pipeline/remove
+pipeline/remove: ## Remove azure pipelines for this project
+	az pipelines delete --detect false \
+		--id $(shell az pipelines show --detect false --name "$(PIPELINE)" --output tsv --query id) -y || true
+
+.PHONY: pipeline/run
+pipeline/run: ## Runs azure pipelines for this project
+	az pipelines run --detect false --name "$(PIPELINE)" --branch $(BRANCH)
+
+.PHONY: pipeline/show
+pipeline/show: ## Show existing ADO pipelines for this project
+	@az pipelines list --detect false -o table | grep "$(PIPELINE)"  
