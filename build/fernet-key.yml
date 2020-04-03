@@ -1,0 +1,42 @@
+## Deploys an airflow fernet key to a keyvault if the secret does not already exist
+parameters:
+  secretsgroup: ''
+  vault: ''
+  tenantid: ''
+  subscriptionid: ''
+  subscriptionname: ''
+  secretname: 'airflow-fernet-key'
+
+jobs:
+- job: fernet_key
+  pool:
+    vmImage: ubuntu-latest
+  variables:
+  ## will have our spn id/secret
+  - group: ${{ parameters.secretsgroup }}
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Python: 3.7.x'
+    inputs:
+      versionSpec: 3.7.6
+
+  - script: |
+      az login \
+        --service-principal \
+        --tenant "${TENANTID}" \
+        --username "${SPNAPPID}" \
+        --password "${SPNSECRET}"
+      az account set \
+        --subscription "${AZSUB}"
+    displayName: 'Azure CLI Configuration'
+    env:
+      TENANTID: ${{ parameters.tenantid }}
+      AZSUB: "${{ parameters.subscriptionname }}"
+      SPNAPPID: $(SPNAPPID)
+      SPNSECRET: $(SPNSECRET)
+
+  - template: ../jobs/new-fernet-key.yml
+    parameters:
+      vault: ${{ parameters.vault }}
+      secretName: ${{ parameters.secretname }}
+      subscription: ${{ parameters.subscriptionid }}

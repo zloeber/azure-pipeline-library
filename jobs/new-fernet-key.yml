@@ -1,0 +1,40 @@
+# Use az cli to push a fernet key into a keyvault if it does not already exist.
+parameters:
+  # Vault to push secret into (if it does not already exist)
+  vault: ''
+  # Secret name to use for fernet key
+  secretName: 'airflow-fernet-key'
+  # Subscription where the keyvault resides
+  subscription: ''
+
+steps:
+- bash: |
+    set_secret () {
+      echo "Attempting to set secret: $1"
+      if [ ! -z "$1" ] && [ ! -z "$2" ]; then
+        az keyvault secret set \
+            --name $1 \
+            --value "${2}" \
+            --subscription ${SUBSCRIPTION} \
+            --vault-name ${VAULT} \
+            --disabled false
+      else
+        echo "Missing either the secret name, its value, or both."
+      fi;
+    }
+
+    EXISTINGSECRET="$(az keyvault secret show --name ${SECRETNAME} --vault-name ${VAULT} --subscription "${SUBSCRIPTION}" --query value -o tsv 2> /dev/null)"
+    if [ -z "$EXISTINGSECRET" ]; then
+      echo "${SECRETNAME} does not exist or is empty, generating new fernet key"
+      pip install cryptography --user > /dev/null
+      FERNETKEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+      set_secret "${SECRETNAME}" "${FERNETKEY}"
+    else
+      echo "${SECRETNAME} is already populated, skipping step."
+      exit 0
+    fi
+  displayName: 'Fernet Key Check'
+  env:
+    VAULT: '${{ parameters.vault }}'
+    SECRETNAME: '${{ parameters.secretName }}'
+    SUBSCRIPTION: '${{ parameters.subscription }}'
