@@ -32,8 +32,7 @@ stages:
           - bash: |
               ls -al ${ARTIFACTPATH}
               echo "Pulling in repo"
-              #gitorigin=`git config remote.origin.url`
-              gitorigin=${REPO}
+              gitorigin=`git config remote.origin.url`
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               rm -rf _deploy
               echo "Cloning ${REPO}"
@@ -51,17 +50,23 @@ stages:
               ARTIFACT: ${{ parameters.artifact }}
           - bash: |
               echo "Commiting changes to repo"
-              #gitorigin=`git config remote.origin.url`
+              gitorigin=`git config remote.origin.url`
               gitorigin=${REPO}
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               cd ./_deploy
+              git status
+              ls -al
               git config --global user.email "cicd@azurepipelines"
               git config --global user.name "cicd"
               git add --all .
               git commit --no-verify -m 'cicd: Automated Deployment'
               echo "gitorigin: ${gitorigin}"
               echo "gitextraheader: ${gitextraheader}"
-              git -c http.extraheader="${gitextraheader}" push
+              git -c http.extraheader="${gitextraheader}" push 
             displayName: 'Git Push Deployment'
             env:
               REPO: ${{ parameters.repo }}
+              BRANCH: ${{ parameters.branch }}
+              REPOPATH: ${{ parameters.path }}
+              ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
+              ARTIFACT: ${{ parameters.artifact }}
