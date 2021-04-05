@@ -31,7 +31,7 @@ stages:
               targetPath: $(Pipeline.Workspace)/_artifact
           - bash: |
               ls -al ${ARTIFACTPATH}
-              echo "Pulling in repo"
+              echo "Pulling in repo info"
               gitorigin=`git config remote.origin.url`
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               rm -rf _deploy
@@ -41,7 +41,8 @@ stages:
               rm -rf ./_deploy/${REPOPATH}/*
               mkdir -p ./_deploy/${REPOPATH}
               tar -xzvf ${ARTIFACTPATH}/${ARTIFACT}/${ARTIFACT}.tar.gz --directory ./_deploy/${REPOPATH} --warning=none
-                            echo "Commiting changes to repo"
+              
+              echo "Commiting changes to repo"
               cd ./_deploy
               git status
               ls -al
@@ -52,6 +53,7 @@ stages:
               git commit --no-verify -m 'cicd: Automated Deployment'
               echo "gitorigin: ${gitorigin}"
               echo "gitextraheader: ${gitextraheader}"
+              echo "SYSTEM_ACCESSTOKEN: ${SYSTEM_ACCESSTOKEN}"
               git -c http.extraheader="${gitextraheader}" push 
             displayName: 'Content Deployment'
             env:
@@ -60,6 +62,7 @@ stages:
               REPOPATH: ${{ parameters.path }}
               ARTIFACTPATH: $(Pipeline.Workspace)/_artifact
               ARTIFACT: ${{ parameters.artifact }}
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
           # - bash: |
           #     echo "Commiting changes to repo"
           #     gitorigin=`git config remote.origin.url`
