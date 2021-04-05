@@ -51,7 +51,6 @@ stages:
           - bash: |
               echo "Commiting changes to repo"
               gitorigin=`git config remote.origin.url`
-              gitorigin=${REPO}
               gitextraheader=`git config "http.${gitorigin}.extraheader"`
               cd ./_deploy
               git status
