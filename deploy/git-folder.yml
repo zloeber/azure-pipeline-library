@@ -47,7 +47,7 @@ stages:
               ls -al
               git config --global user.email "cicd@azurepipelines"
               git config --global user.name "cicd"
-              git config --global url."git@github.com:".insteadOf "https://github.com/"
+              #git config --global url."git@github.com:".insteadOf "https://github.com/"
               git add --all .
               git commit --no-verify -m 'cicd: Automated Deployment'
               echo "gitorigin: ${gitorigin}"
