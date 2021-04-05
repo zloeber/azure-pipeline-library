@@ -24,8 +24,29 @@
 #>
 
 ## (Optional)
-#Login-AzAccount
-$sub = Set-AzContext -SubscriptionId (Get-AzSubscription | Out-GridView -Title "Pick A Subscription" -PassThru).subscriptionid
+function Login-AZ($SubscriptionId)
+{
+    $context = Get-AzContext
+
+    if (!$context -or ($context.Subscription.Id -ne $SubscriptionId)) 
+    {
+        Connect-AzAccount -Subscription $SubscriptionId
+    } 
+    else 
+    {
+        Write-Host "SubscriptionId '$SubscriptionId' already connected"
+    }
+}
+if ([string]::IsNullOrEmpty($(Get-AzContext).Account)) {
+    Login-AzAccount
+}
+
+if ($IsWindows) {
+	$sub = Set-AzContext -SubscriptionId (Get-AzSubscription | Out-GridView -Title "Pick A Subscription" -PassThru).subscriptionid
+}
+else {
+        $sub = Set-AzContext -SubscriptionId (Get-AzSubscription | Out-ConsoleGridView -Title "Pick A Subscription" -PassThru).subscriptionid
+}
 
 $AllNSGs = Get-AzNetworkSecurityGroup
 $AllInts = Get-AzNetworkInterface
