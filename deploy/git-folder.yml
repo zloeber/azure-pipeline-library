@@ -54,7 +54,8 @@ stages:
               echo "gitorigin: ${gitorigin}"
               echo "gitextraheader: ${gitextraheader}"
               echo "SYSTEM_ACCESSTOKEN: ${SYSTEM_ACCESSTOKEN}"
-              git -c http.extraheader="${gitextraheader}" push 
+              git status
+              git -c http.${REPO}/.extraheader="${gitextraheader}" push 
             displayName: 'Content Deployment'
             env:
               REPO: ${{ parameters.repo }}
