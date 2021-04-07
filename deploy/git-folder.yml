@@ -71,10 +71,11 @@ stages:
               # gitextraheader=`git config "http.${gitorigin}.extraheader"`
               cd ./_deploy
               ls -al
+              echo "Github PAT: $(GITHUBPAT)"
               #echo "https://$(GITHUBPAT):x-oauth-basic@github.com" >> "$HOME\.git-credentials"
               git config --global user.email "cicd@azurepipelines"
               git config --global user.name "cicd"
-              git config --global --add url."git@github.com:".insteadOf "https://github.com/"
+              #git config --global --add url."git@github.com:".insteadOf "https://github.com/"
               git -c credential.helper='!f() { echo "username=cicd"; echo "password=$(GITHUBPAT)"; };f'
               git status
               git add --all .
