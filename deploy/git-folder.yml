@@ -70,12 +70,12 @@ stages:
               # gitorigin=`git config remote.origin.url`
               # gitextraheader=`git config "http.${gitorigin}.extraheader"`
               cd ./_deploy
-              git status
               ls -al
-              echo "https://$(GithubPAT):x-oauth-basic@github.com" >> "$HOME\.git-credentials"
+              echo "https://$(GITHUBPAT):x-oauth-basic@github.com" >> "$HOME\.git-credentials"
               git config --global user.email "cicd@azurepipelines"
               git config --global user.name "cicd"
               git config --global --add url."git@github.com:".insteadOf "https://github.com/"
+              git status
               git add --all .
               git commit --no-verify -m 'cicd: Automated Deployment'
               git push
